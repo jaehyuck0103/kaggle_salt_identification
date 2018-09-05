@@ -1,7 +1,8 @@
 import os
 import numpy as np
-from skimage.io import imread, ImageCollection
+from skimage.io import imread, ImageCollection  # , imsave
 from sklearn.model_selection import KFold
+
 
 from torch.utils.data import Dataset
 
@@ -28,6 +29,7 @@ class Salt(Dataset):
         super(Salt, self).__init__()
 
         self.cfg = cfg
+        self.mode = mode
 
         self.imgs = ImageCollection(os.path.join(TRAIN_IMG_DIR, '*.png'),
                                     conserve_memory=False, load_func=_imread_img)
@@ -49,6 +51,24 @@ class Salt(Dataset):
 
         img = self.imgs[idx]
         mask = self.masks[idx]
+
+        H, W = img.shape
+
+        if self.mode == 'train':
+            img_mask = np.stack([img, mask], axis=-1)
+
+            # pad and crop
+            img_mask = np.pad(img_mask, ((10, 10), (10, 10), (0, 0)), mode='reflect')
+            crop_idx = np.random.randint(20)
+            img_mask = img_mask[crop_idx:crop_idx+H, crop_idx:crop_idx+W, :]
+
+            # FlipLR (50%)
+            if crop_idx < 10:
+                img_mask = img_mask[:, ::-1, :]
+
+            #
+            img = img_mask[:, :, 0].copy()
+            mask = img_mask[:, :, 1].copy()
 
         # sample return
         img = np.expand_dims(img, axis=0)

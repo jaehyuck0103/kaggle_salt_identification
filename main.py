@@ -57,6 +57,7 @@ def test(cfg):
         agents.append(agent)
 
     tqdm_batch = tqdm(test_loader, f'Test')
+    os.makedirs(os.path.join(cfg.CHECKPOINT_DIR, 'test_imgs'))
     for x in tqdm_batch:
         pred = [a.predict(x['img']) for a in agents]
         pred = np.mean(pred, axis=0)
