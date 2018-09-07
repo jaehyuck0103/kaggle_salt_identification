@@ -11,7 +11,8 @@ from torch.utils.data import DataLoader
 from nets.unet import UNet
 from datasets.salt import Salt
 
-from utils.metrics import AverageMeter
+from utils.metrics import AverageMeter, iou_pytorch
+from utils.imgproc import remove_small_mask_batch
 
 
 class UNetAgent():
@@ -42,7 +43,7 @@ class UNetAgent():
         # Counter Setting
         self.current_epoch = 0
         self.current_iteration = 0
-        self.best_valid_acc = 0
+        self.best_valid_iou = 0
 
     def save_checkpoint(self):
 
@@ -84,10 +85,10 @@ class UNetAgent():
             self.current_epoch = epoch
             self.train_one_epoch()
 
-            valid_acc = self.validate()
-            is_best = valid_acc > self.best_valid_acc
+            valid_iou = self.validate()
+            is_best = valid_iou > self.best_valid_iou
             if is_best:
-                self.best_valid_acc = valid_acc
+                self.best_valid_iou = valid_iou
                 num_bad_epochs = 0
             else:
                 num_bad_epochs += 1
@@ -105,7 +106,7 @@ class UNetAgent():
                     break
 
         self.save_checkpoint()
-        return self.best_valid_acc
+        return self.best_valid_iou
 
     def train_one_epoch(self):
 
@@ -155,7 +156,8 @@ class UNetAgent():
 
         # Initialize average meters
         epoch_loss = AverageMeter()
-        epoch_acc = AverageMeter()
+        epoch_iou = AverageMeter()
+        epoch_filtered_iou = AverageMeter()
 
         tqdm_batch = tqdm(self.valid_loader, f'Epoch-{self.current_epoch}-')
         with torch.no_grad():
@@ -170,20 +172,27 @@ class UNetAgent():
                 # loss
                 cur_loss = self.loss(pred, masks)
                 if np.isnan(float(cur_loss.item())):
-                    raise ValueError('Loss is nan during training...')
+                    raise ValueError('Loss is nan during validation...')
 
                 # metrics
-                cur_acc = torch.sum((pred > 0) == (masks > 0.5)).item() / imgs.numel()
+                pred_t = torch.sigmoid(pred) > 0.5
+                masks_t = masks > 0.5
 
-                epoch_loss.update(cur_loss.item(), imgs.size(0))
-                epoch_acc.update(cur_acc, imgs.size(0))
+                cur_iou = iou_pytorch(pred_t, masks_t)
+                cur_filtered_iou = iou_pytorch(remove_small_mask_batch(pred_t), masks_t)
+
+                batch_size = imgs.shape[0]
+                epoch_loss.update(cur_loss.item(), batch_size)
+                epoch_iou.update(cur_iou.item(), batch_size)
+                epoch_filtered_iou.update(cur_filtered_iou.item(), batch_size)
 
         tqdm_batch.close()
 
         logging.info(f'Validation at epoch- {self.current_epoch} |'
-                     f'loss: {epoch_loss.val} - Acc: {epoch_acc.val}')
+                     f'loss: {epoch_loss.val} - IOU: {epoch_iou.val}'
+                     f' - Filtered IOU: {epoch_filtered_iou.val}')
 
-        return epoch_acc.val
+        return epoch_filtered_iou.val
 
     def predict(self, imgs):
 

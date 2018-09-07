@@ -12,25 +12,15 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 from agents.unet import UNetAgent
 from datasets.salt import SaltTest
-
+from utils.imgproc import remove_small_mask
+from utils.misc import rle_encode
 
 # Filter out the low contrast warning in imsave()
 warnings.filterwarnings('ignore', message='.*low contrast')
+warnings.filterwarnings('ignore', message='.*Anti')
 
 ROOT_DIR = os.path.join(os.path.dirname(__file__))
 ROOT_DIR = os.path.abspath(ROOT_DIR)
-
-
-def rle_encode(im):
-    '''
-    im: numpy array, 1 - mask, 0 - background
-    Returns run length as string formated
-    '''
-    pixels = im.flatten()
-    pixels = np.concatenate([[0], pixels, [0]])
-    runs = np.where(pixels[1:] != pixels[:-1])[0] + 1
-    runs[1::2] -= runs[::2]
-    return ' '.join(str(x) for x in runs)
 
 
 def train(cfg):
@@ -42,8 +32,6 @@ def train(cfg):
 
 
 def test(cfg):
-
-    df = pd.read_csv(os.path.join(ROOT_DIR, 'data/sample_submission.csv'), index_col='id')
 
     test_dataset = SaltTest(cfg, mode='train')
     test_loader = DataLoader(dataset=test_dataset, batch_size=cfg.TEST_BATCH_SIZE,
@@ -57,20 +45,25 @@ def test(cfg):
         agents.append(agent)
 
     tqdm_batch = tqdm(test_loader, f'Test')
-    os.makedirs(os.path.join(cfg.CHECKPOINT_DIR, 'test_imgs'))
+    os.makedirs(os.path.join(cfg.CHECKPOINT_DIR, 'test_imgs'), exist_ok=True)
+    pred_dict = {}
     for x in tqdm_batch:
         pred = [a.predict(x['img']) for a in agents]
         pred = np.mean(pred, axis=0)
+        pred = np.squeeze(pred)
 
         for mask, fname in zip(pred, x['file_name']):
+            mask = np.round(mask)
+            mask = remove_small_mask(mask)
+
             save_path = os.path.join(cfg.CHECKPOINT_DIR, f'test_imgs/{fname}.png')
-            imsave(save_path, mask[0])
+            imsave(save_path, mask)
+            pred_dict[fname] = rle_encode(mask)
 
-            mask[mask >= 0.5] = 1
-            mask[mask < 0.5] = 0
-            df.loc[fname, 'rle_mask'] = rle_encode(mask[0])
-
-    df.to_csv(os.path.join(cfg.CHECKPOINT_DIR, 'submit.csv'))
+    sub = pd.DataFrame.from_dict(pred_dict, orient='index')
+    sub.index.names = ['id']
+    sub.columns = ['rle_mask']
+    sub.to_csv(os.path.join(cfg.CHECKPOINT_DIR, 'submit.csv'))
 
 
 if __name__ == '__main__':

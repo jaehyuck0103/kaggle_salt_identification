@@ -93,6 +93,7 @@ class SaltTest(Dataset):
     def __getitem__(self, idx):
 
         img = self.imgs[idx]
+
         file_name = self.imgs._files[idx]
         file_name = os.path.basename(file_name)
         file_name = os.path.splitext(file_name)[0]
