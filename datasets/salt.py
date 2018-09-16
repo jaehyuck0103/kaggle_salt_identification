@@ -16,12 +16,16 @@ TEST_IMG_DIR = os.path.join(ROOT_DIR, 'data/test/images')
 
 
 def _imread_img(f):
-    return imread(f, as_gray=True).astype(np.float32)
+    img = imread(f, as_gray=True).astype(np.float32)
+    img = np.pad(img, ((13, 14), (13, 14)), 'reflect')
+    return img
 
 
 def _imread_mask(f):
     mask = (imread(f) != 0)
-    return mask.astype(np.float32)
+    mask = mask.astype(np.float32)
+    mask = np.pad(mask, ((13, 14), (13, 14)), 'reflect')
+    return mask
 
 
 class Salt(Dataset):

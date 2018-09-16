@@ -14,13 +14,13 @@ from agents.unet import UNetAgent
 from datasets.salt import SaltTest
 from utils.imgproc import remove_small_mask
 from utils.misc import rle_encode
+from configs.config import process_config
 
 # Filter out the low contrast warning in imsave()
 warnings.filterwarnings('ignore', message='.*low contrast')
 warnings.filterwarnings('ignore', message='.*Anti')
 
-ROOT_DIR = os.path.join(os.path.dirname(__file__))
-ROOT_DIR = os.path.abspath(ROOT_DIR)
+ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 
 
 def train(cfg):
@@ -58,7 +58,7 @@ def test(cfg):
 
             save_path = os.path.join(cfg.CHECKPOINT_DIR, f'test_imgs/{fname}.png')
             imsave(save_path, mask)
-            pred_dict[fname] = rle_encode(mask)
+            pred_dict[fname] = rle_encode(mask[13:-14, 13:-14])
 
     sub = pd.DataFrame.from_dict(pred_dict, orient='index')
     sub.index.names = ['id']
@@ -68,8 +68,6 @@ def test(cfg):
 
 if __name__ == '__main__':
 
-    init_time = datetime.now().strftime('%Y%m%d_%H%M%S')
-
     # ------------
     # Argparse
     # ------------
@@ -77,24 +75,14 @@ if __name__ == '__main__':
 
     # Positional arguments
     parser.add_argument('MODE', type=str, choices=['train', 'test'])
+    parser.add_argument('JSON_CFG', type=str)
 
     # Optional arguments
     parser.add_argument('--VER_TO_LOAD', type=str)
 
     # Fixed configs
     cfg = parser.parse_args()
-    cfg.TRAIN_BATCH_SIZE = 32
-    cfg.VALID_BATCH_SIZE = 32
-    cfg.TEST_BATCH_SIZE = 32
-    cfg.LEARNING_RATE = 0.1
-    cfg.MAX_EPOCH = 2000
-    cfg.KFOLD_N = 5
-    cfg.KFOLD_I = 0
-    cfg.PATIENCE = 5
-    if cfg.MODE == 'train':
-        cfg.CHECKPOINT_DIR = os.path.join(ROOT_DIR, f'output/{init_time}')
-    else:
-        cfg.CHECKPOINT_DIR = os.path.join(ROOT_DIR, f'output/{cfg.VER_TO_LOAD}')
+    cfg = process_config(cfg)
 
     # ------
     # Setting Root Logger
@@ -109,6 +97,9 @@ if __name__ == '__main__':
         logging.FileHandler(log_path, mode='w')
     ]
     logging.basicConfig(format=format, level=level, handlers=handlers)
+
+    # logging configs
+    logging.info(cfg)
 
     # -------
     # Run

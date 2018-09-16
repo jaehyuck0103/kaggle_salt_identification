@@ -9,6 +9,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 from nets.unet import UNet
+from nets.unet_residual import UNetRes
 from datasets.salt import Salt
 
 from utils.metrics import AverageMeter, iou_pytorch
@@ -29,13 +30,19 @@ class UNetAgent():
                                        shuffle=True, num_workers=8)
         valid_dataset = Salt(cfg, mode='valid')
         self.valid_loader = DataLoader(dataset=valid_dataset, batch_size=cfg.VALID_BATCH_SIZE,
-                                       shuffle=True, num_workers=8)
+                                       shuffle=False, num_workers=8)
 
         # Network Setting
-        self.net = UNet().to(self.device)
+        if cfg.NET == 'UNet':
+            self.net = UNet(cfg).to(self.device)
+        elif cfg.NET == 'UNetRes':
+            self.net = UNetRes(cfg).to(self.device)
+        else:
+            raise ValueError(f'Unknown Network: {cfg.NET}')
 
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=cfg.LEARNING_RATE)
-        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=1, gamma=0.1)
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=1,
+                                                         gamma=cfg.LR_DECAY_RATE)
         self.scheduler.step()
 
         self.loss = nn.BCEWithLogitsLoss()
@@ -85,6 +92,7 @@ class UNetAgent():
             self.current_epoch = epoch
             self.train_one_epoch()
 
+            # Validation
             valid_iou = self.validate()
             is_best = valid_iou > self.best_valid_iou
             if is_best:
@@ -102,7 +110,7 @@ class UNetAgent():
                 logging.info(f'LR decaying to {cur_lr}')
 
                 # Early Stopping
-                if cur_lr < 5e-4:
+                if cur_lr < self.cfg.MIN_LR:
                     break
 
         self.save_checkpoint()

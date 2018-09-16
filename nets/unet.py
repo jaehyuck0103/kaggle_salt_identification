@@ -3,19 +3,21 @@ import torch.nn as nn
 from nets.unet_parts import inconv, down, up, outconv
 
 
+# 32
 class UNet(nn.Module):
-    def __init__(self, n_channels=1, n_classes=1):
+    def __init__(self, cfg):
         super(UNet, self).__init__()
-        self.inc = inconv(n_channels, 8)
-        self.down1 = down(8, 16)
-        self.down2 = down(16, 32)
-        self.down3 = down(32, 64)
-        self.down4 = down(64, 128)
-        self.up1 = up(128, 64)
-        self.up2 = up(64, 32, out_pad=1)
-        self.up3 = up(32, 16)
-        self.up4 = up(16, 8, out_pad=1)
-        self.outc = outconv(8, n_classes)
+        CH = cfg.NET_CH
+        self.inc = inconv(1, CH*1)
+        self.down1 = down(CH*1, CH*2)
+        self.down2 = down(CH*2, CH*4)
+        self.down3 = down(CH*4, CH*8)
+        self.down4 = down(CH*8, CH*16)
+        self.up1 = up(CH*16, CH*8)
+        self.up2 = up(CH*8, CH*4, out_pad=1)
+        self.up3 = up(CH*4, CH*2)
+        self.up4 = up(CH*2, CH*1, out_pad=1)
+        self.outc = outconv(CH*1, 1)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
