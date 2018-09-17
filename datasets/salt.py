@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from skimage.io import imread, ImageCollection  # , imsave
-from sklearn.model_selection import KFold
+from sklearn.model_selection import StratifiedKFold
 
 
 from torch.utils.data import Dataset
@@ -40,8 +40,13 @@ class Salt(Dataset):
         self.masks = ImageCollection(os.path.join(TRAIN_MASK_DIR, '*.png'),
                                      conserve_memory=False, load_func=_imread_mask)
 
-        kf = KFold(n_splits=cfg.KFOLD_N, shuffle=False)
-        train_idx, valid_idx = list(kf.split(self.imgs))[cfg.KFOLD_I]
+        H, W = self.imgs[0].shape
+
+        coverages = np.array([np.sum(m) / (H * W) for m in self.masks])
+        coverage_labels = np.ceil(coverages * 10).astype(int)
+
+        kf = StratifiedKFold(n_splits=cfg.KFOLD_N, shuffle=True, random_state=910103)
+        train_idx, valid_idx = list(kf.split(self.imgs, coverage_labels))[cfg.KFOLD_I]
         if mode == 'train':
             self.idx_map = train_idx
         elif mode == 'valid':
