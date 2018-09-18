@@ -8,8 +8,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from nets.unet import UNet
-from nets.unet_residual import UNetRes
+from nets.unet_basic import UNetBasic
+from nets.unet_res import UNetRes
 from datasets.salt import Salt
 
 from utils.metrics import AverageMeter, iou_pytorch
@@ -33,8 +33,8 @@ class UNetAgent():
                                        shuffle=False, num_workers=8)
 
         # Network Setting
-        if cfg.NET == 'UNet':
-            self.net = UNet(cfg).to(self.device)
+        if cfg.NET == 'UNetBasic':
+            self.net = UNetBasic(cfg).to(self.device)
         elif cfg.NET == 'UNetRes':
             self.net = UNetRes(cfg).to(self.device)
         else:
@@ -155,7 +155,7 @@ class UNetAgent():
         tqdm_batch.close()
 
         logging.info(f'Training at epoch- {self.current_epoch} |'
-                     f'loss: {epoch_loss.val} - Acc: {epoch_acc.val}')
+                     f'loss: {epoch_loss.val:.5} - Acc: {epoch_acc.val:.5}')
 
     def validate(self):
 
@@ -197,8 +197,8 @@ class UNetAgent():
         tqdm_batch.close()
 
         logging.info(f'Validation at epoch- {self.current_epoch} |'
-                     f'loss: {epoch_loss.val} - IOU: {epoch_iou.val}'
-                     f' - Filtered IOU: {epoch_filtered_iou.val}')
+                     f'loss: {epoch_loss.val:.5} - IOU: {epoch_iou.val:.5}'
+                     f' - Filtered IOU: {epoch_filtered_iou.val:.5}')
 
         return epoch_filtered_iou.val
 
