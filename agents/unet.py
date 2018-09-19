@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 
 from nets.unet_basic import UNetBasic
 from nets.unet_res import UNetRes
+from nets.unet_res34 import UNetRes34
 from datasets.salt import Salt
 
 from utils.metrics import AverageMeter, iou_pytorch
@@ -37,6 +38,8 @@ class UNetAgent():
             self.net = UNetBasic(cfg).to(self.device)
         elif cfg.NET == 'UNetRes':
             self.net = UNetRes(cfg).to(self.device)
+        elif cfg.NET == 'UNetRes34':
+            self.net = UNetRes34(cfg).to(self.device)
         else:
             raise ValueError(f'Unknown Network: {cfg.NET}')
 
