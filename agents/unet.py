@@ -11,10 +11,13 @@ from torch.utils.data import DataLoader
 from nets.unet_basic import UNetBasic
 from nets.unet_res import UNetRes
 from nets.unet_res34 import UNetRes34
+from nets.unet_res_open import UNetResOpen
 from datasets.salt import Salt
 
 from utils.metrics import AverageMeter, iou_pytorch
 from utils.imgproc import remove_small_mask_batch
+
+from nets.lovasz_losses import lovasz_hinge
 
 
 class UNetAgent():
@@ -40,6 +43,8 @@ class UNetAgent():
             self.net = UNetRes(cfg).to(self.device)
         elif cfg.NET == 'UNetRes34':
             self.net = UNetRes34(cfg).to(self.device)
+        elif cfg.NET == 'UNetResOpen':
+            self.net = UNetResOpen().to(self.device)
         else:
             raise ValueError(f'Unknown Network: {cfg.NET}')
 
@@ -138,7 +143,8 @@ class UNetAgent():
             pred = self.net(imgs)
 
             # loss
-            cur_loss = self.loss(pred, masks)
+            # cur_loss = self.loss(pred, masks)
+            cur_loss = lovasz_hinge(pred, masks)
             if np.isnan(float(cur_loss.item())):
                 raise ValueError('Loss is nan during training...')
 
