@@ -22,4 +22,7 @@ def process_config(cfg):
     else:
         cfg.CHECKPOINT_DIR = os.path.join(ROOT_DIR, f'output/{cfg.VER_TO_LOAD}')
 
+    if hasattr(cfg, 'FINETUNE_VER'):
+        cfg.FINETUNE_DIR = os.path.join(ROOT_DIR, f'output/{cfg.FINETUNE_VER}')
+
     return cfg

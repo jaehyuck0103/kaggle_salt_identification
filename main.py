@@ -3,12 +3,14 @@ import os
 import logging
 import warnings
 from datetime import datetime
+import random
 
 import numpy as np
 import pandas as pd
 from skimage.io import imsave
 from tqdm import tqdm
 
+import torch
 from torch.utils.data import DataLoader
 from agents.unet import UNetAgent
 from datasets.salt import SaltTest
@@ -22,12 +24,19 @@ warnings.filterwarnings('ignore', message='.*Anti')
 
 ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 
+# Fix seed
+random.seed(910103)
+np.random.seed(910103)
+torch.manual_seed(910103)
+torch.backends.cudnn.deterministic = True
+
 
 def train(cfg):
-
-    for i in range(cfg.KFOLD_N):
+    for i in cfg.KFOLD_I_LIST:
         cfg.KFOLD_I = i
         agent = UNetAgent(cfg)
+        if hasattr(cfg, 'FINETUNE_DIR'):
+            agent.load_checkpoint()
         agent.train()
 
 
@@ -38,7 +47,7 @@ def test(cfg):
                              shuffle=False, num_workers=8)
 
     agents = []
-    for i in range(cfg.KFOLD_N):
+    for i in cfg.KFOLD_I_LIST:
         cfg.KFOLD_I = i
         agent = UNetAgent(cfg)
         agent.load_checkpoint()

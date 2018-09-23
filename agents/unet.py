@@ -26,7 +26,6 @@ class UNetAgent():
 
         # Device Setting
         self.device = torch.device('cuda')
-        # #torch.cuda.manual_seed_all(self.config.seed)
 
         # Dataset Setting
         train_dataset = Salt(cfg, mode='train')
@@ -48,23 +47,33 @@ class UNetAgent():
         else:
             raise ValueError(f'Unknown Network: {cfg.NET}')
 
-        self.optimizer = torch.optim.Adam(self.net.parameters(), lr=cfg.LEARNING_RATE)
+        if cfg.OPTIMIZER == 'Adam':
+            self.optimizer = torch.optim.Adam(self.net.parameters(), lr=cfg.LEARNING_RATE)
+        elif cfg.OPTIMIZER == 'SGD':
+            self.optimizer = torch.optim.SGD(self.net.parameters(), lr=cfg.LEARNING_RATE,
+                                             momentum=0.9, weight_decay=0.0001)
+        else:
+            raise ValueError(f'Unknown Optimizer: {cfg.OPTIMIZER}')
+
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=1,
                                                          gamma=cfg.LR_DECAY_RATE)
         self.scheduler.step()
 
-        self.loss = nn.BCEWithLogitsLoss()
+        if cfg.LOSS == 'CrossEntropy':
+            self.loss = nn.BCEWithLogitsLoss()
+        elif cfg.LOSS == 'LOVASZ':
+            self.loss = lovasz_hinge
+        else:
+            raise ValueError(f'Unknown Loss: {cfg.LOSS}')
 
         # Counter Setting
         self.current_epoch = 0
-        self.current_iteration = 0
         self.best_valid_iou = 0
 
     def save_checkpoint(self):
 
         state = {
             'epoch': self.current_epoch,
-            'iteration': self.current_iteration,
             'state_dict': self.net.state_dict(),
             'optimizer': self.optimizer.state_dict(),
         }
@@ -83,15 +92,13 @@ class UNetAgent():
 
         filename = f'UNet_{self.cfg.KFOLD_I}.ckpt'
         logging.info("Loading checkpoint '{}'".format(filename))
-        checkpoint = torch.load(os.path.join(self.cfg.CHECKPOINT_DIR, filename))
+        checkpoint = torch.load(os.path.join(self.cfg.FINETUNE_DIR, filename))
 
-        self.current_epoch = checkpoint['epoch']
-        self.current_iteration = checkpoint['iteration']
+        self.current_epoch = checkpoint['epoch'] + 1
         self.net.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
 
-        logging.info("Checkpoint loaded successfully at (epoch {}) at (iteration {})\n"
-                     .format(checkpoint['epoch'], checkpoint['iteration']))
+        logging.info(f'Checkpoint loaded successfully at (epoch {checkpoint["epoch"]})')
 
     def train(self):
 
@@ -143,8 +150,7 @@ class UNetAgent():
             pred = self.net(imgs)
 
             # loss
-            # cur_loss = self.loss(pred, masks)
-            cur_loss = lovasz_hinge(pred, masks)
+            cur_loss = self.loss(pred, masks)
             if np.isnan(float(cur_loss.item())):
                 raise ValueError('Loss is nan during training...')
 
@@ -158,8 +164,6 @@ class UNetAgent():
 
             epoch_loss.update(cur_loss.item(), imgs.size(0))
             epoch_acc.update(cur_acc, imgs.size(0))
-
-            self.current_iteration += 1
 
         tqdm_batch.close()
 
