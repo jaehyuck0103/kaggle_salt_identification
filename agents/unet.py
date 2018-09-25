@@ -88,11 +88,11 @@ class UNetAgent():
                             self.config.checkpoint_dir + 'model_best.pth.tar')
         '''
 
-    def load_checkpoint(self):
+    def load_checkpoint(self, load_dir):
 
         filename = f'UNet_{self.cfg.KFOLD_I}.ckpt'
         logging.info("Loading checkpoint '{}'".format(filename))
-        checkpoint = torch.load(os.path.join(self.cfg.FINETUNE_DIR, filename))
+        checkpoint = torch.load(os.path.join(load_dir, filename))
 
         self.current_epoch = checkpoint['epoch'] + 1
         self.net.load_state_dict(checkpoint['state_dict'])

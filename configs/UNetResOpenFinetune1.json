@@ -6,9 +6,9 @@
     "VALID_BATCH_SIZE": 32,
     "TEST_BATCH_SIZE": 32,
 
-    "MAX_EPOCH": 115,
+    "MAX_EPOCH": 1000,
     "LEARNING_RATE": 0.005,
-    "MIN_LR": 5e-8,
+    "MIN_LR": 5e-10,
     "LR_DECAY_RATE": 0.5,
     "PATIENCE": 6,
 

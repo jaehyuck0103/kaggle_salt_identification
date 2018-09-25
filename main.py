@@ -36,7 +36,7 @@ def train(cfg):
         cfg.KFOLD_I = i
         agent = UNetAgent(cfg)
         if hasattr(cfg, 'FINETUNE_DIR'):
-            agent.load_checkpoint()
+            agent.load_checkpoint(cfg.FINETUNE_DIR)
         agent.train()
 
 
@@ -50,7 +50,7 @@ def test(cfg):
     for i in cfg.KFOLD_I_LIST:
         cfg.KFOLD_I = i
         agent = UNetAgent(cfg)
-        agent.load_checkpoint()
+        agent.load_checkpoint(cfg.CHECKPOINT_DIR)
         agents.append(agent)
 
     tqdm_batch = tqdm(test_loader, f'Test')
