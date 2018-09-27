@@ -3,7 +3,7 @@ import torch
 
 
 def remove_small_mask(mask):
-    if mask.sum() < 100:
+    if mask.sum() < 15:
         return np.zeros(mask.shape)
     else:
         return mask
