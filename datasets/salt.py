@@ -79,10 +79,9 @@ class Salt(Dataset):
 
             img_mask *= 255
             img_mask = img_mask.astype(np.uint8)
-            img_mask = np.expand_dims(img_mask, axis=0)
 
             # pad and crop
-            img_mask = np.pad(img_mask, ((0, 0), (23, 24), (23, 24), (0, 0)), mode='reflect')
+            img_mask = np.pad(img_mask, ((23, 24), (23, 24), (0, 0)), mode='reflect')
             '''
             crop_idx_W = np.random.randint(20)
             crop_idx_H = np.random.randint(20)
@@ -93,11 +92,10 @@ class Salt(Dataset):
             if flip_idx < 10:
                 img_mask = img_mask[:, ::-1, :]
             '''
-            img_mask = self.aug_geo.augment_images(img_mask)
-            img_mask[:, :, :, 0] = self.aug_intensity.augment_images(img_mask[:, :, :, 0])
+            img_mask = self.aug_geo.augment_image(img_mask)
+            img_mask[:, :, 0] = self.aug_intensity.augment_image(img_mask[:, :, 0])
 
             #
-            img_mask = img_mask[0]
             img_mask = img_mask.astype(np.float32)
             img_mask /= 255
 
