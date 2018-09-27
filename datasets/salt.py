@@ -4,6 +4,7 @@ from skimage.io import imread, ImageCollection  # , imsave
 from sklearn.model_selection import StratifiedKFold
 
 from torch.utils.data import Dataset
+from imgaug import augmenters as iaa
 
 
 ROOT_DIR = os.path.join(os.path.dirname(__file__), '../')
@@ -16,14 +17,12 @@ TEST_IMG_DIR = os.path.join(ROOT_DIR, 'data/test/images')
 
 def _imread_img(f):
     img = imread(f, as_gray=True).astype(np.float32)
-    img = np.pad(img, ((13, 14), (13, 14)), 'reflect')
     return img
 
 
 def _imread_mask(f):
     mask = (imread(f) != 0)
     mask = mask.astype(np.float32)
-    mask = np.pad(mask, ((13, 14), (13, 14)), 'reflect')
     return mask
 
 
@@ -53,6 +52,18 @@ class Salt(Dataset):
         else:
             raise ValueError('Unknown Mode')
 
+        self.aug_geo = iaa.Sequential([
+            iaa.Fliplr(p=0.5),
+            iaa.Crop(px=(0, 20)),
+            iaa.Scale({"height": 128, "width": 128}),
+            iaa.Affine(rotate=(-10, 10), mode='reflect'),
+        ])
+
+        self.aug_intensity = iaa.Sequential([
+            iaa.Add(value=(-20, +20)),
+            iaa.ContrastNormalization(alpha=(0.9, 1.1)),
+        ])
+
     def __getitem__(self, idx):
 
         idx = self.idx_map[idx]
@@ -60,23 +71,42 @@ class Salt(Dataset):
         img = self.imgs[idx]
         mask = self.masks[idx]
 
-        H, W = img.shape
+        H = 128
+        W = 128
 
         if self.mode == 'train':
             img_mask = np.stack([img, mask], axis=-1)
 
+            img_mask *= 255
+            img_mask = img_mask.astype(np.uint8)
+            img_mask = np.expand_dims(img_mask, axis=0)
+
             # pad and crop
-            img_mask = np.pad(img_mask, ((10, 10), (10, 10), (0, 0)), mode='reflect')
-            crop_idx = np.random.randint(20)
-            img_mask = img_mask[crop_idx:crop_idx+H, crop_idx:crop_idx+W, :]
+            img_mask = np.pad(img_mask, ((0, 0), (23, 24), (23, 24), (0, 0)), mode='reflect')
+            '''
+            crop_idx_W = np.random.randint(20)
+            crop_idx_H = np.random.randint(20)
+            img_mask = img_mask[crop_idx_H:crop_idx_H+H, crop_idx_W:crop_idx_W+W, :]
 
             # FlipLR (50%)
-            if crop_idx < 10:
+            flip_idx = np.random.randint(20)
+            if flip_idx < 10:
                 img_mask = img_mask[:, ::-1, :]
+            '''
+            img_mask = self.aug_geo.augment_images(img_mask)
+            img_mask[:, :, :, 0] = self.aug_intensity.augment_images(img_mask[:, :, :, 0])
+
+            #
+            img_mask = img_mask[0]
+            img_mask = img_mask.astype(np.float32)
+            img_mask /= 255
 
             #
             img = img_mask[:, :, 0].copy()
             mask = img_mask[:, :, 1].copy()
+        else:
+            img = np.pad(img, ((13, 14), (13, 14)), 'reflect')
+            mask = np.pad(mask, ((13, 14), (13, 14)), 'reflect')
 
         # sample return
         img = np.expand_dims(img, axis=0)
@@ -105,6 +135,8 @@ class SaltTest(Dataset):
         file_name = self.imgs._files[idx]
         file_name = os.path.basename(file_name)
         file_name = os.path.splitext(file_name)[0]
+
+        img = np.pad(img, ((13, 14), (13, 14)), 'reflect')
 
         # sample return
         img = np.expand_dims(img, axis=0)
