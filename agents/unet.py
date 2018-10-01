@@ -35,6 +35,12 @@ class UNetAgent():
         self.valid_loader = DataLoader(dataset=valid_dataset, batch_size=cfg.VALID_BATCH_SIZE,
                                        shuffle=False, num_workers=8)
 
+        '''
+        for i in range(100):
+            train_dataset[i]
+        exit()
+        '''
+
         # Network Setting
         if cfg.NET == 'UNetBasic':
             self.net = UNetBasic(cfg).to(self.device)

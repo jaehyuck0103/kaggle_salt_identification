@@ -8,14 +8,14 @@
 
     "MAX_EPOCH": 1000,
     "LEARNING_RATE": 0.005,
-    "MIN_LR": 5e-10,
+    "MIN_LR": 5e-7,
     "LR_DECAY_RATE": 0.5,
-    "PATIENCE": 6,
+    "PATIENCE": 10,
 
     "KFOLD_N": 5,
     "KFOLD_I_LIST": [0],
 
     "LOSS": "LOVASZ",
     "OPTIMIZER": "SGD",
-    "FINETUNE_VER": "20180923_213341"
+    "FINETUNE_VER": "20180929_115319"
 }

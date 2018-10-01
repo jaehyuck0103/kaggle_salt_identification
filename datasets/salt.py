@@ -52,17 +52,39 @@ class Salt(Dataset):
         else:
             raise ValueError('Unknown Mode')
 
-        self.aug_geo = iaa.Sequential([
-            iaa.Fliplr(p=0.5),
-            iaa.Crop(px=(0, 20)),
+        self.aug_geo1 = iaa.Sequential([
+            # General
+            iaa.Fliplr(0.5),
+            iaa.Crop(px=(5, 15), keep_size=False),
+            # iaa.Sometimes(1.0, iaa.Affine(rotate=(-10, 10), mode='reflect')),
+
+            # Deformations
+            # iaa.Sometimes(0.3, iaa.PiecewiseAffine(scale=(0.04, 0.08))),
+            # iaa.Sometimes(0.3, iaa.PerspectiveTransform(scale=(0.05, 0.1))),
+        ], random_order=True)
+
+        self.aug_geo2 = iaa.Sequential([
             iaa.Scale({"height": 128, "width": 128}),
-            iaa.Affine(rotate=(-10, 10), mode='reflect'),
-        ])
+        ], random_order=False)
 
         self.aug_intensity = iaa.Sequential([
-            iaa.Add(value=(-20, +20)),
-            iaa.ContrastNormalization(alpha=(0.9, 1.1)),
-        ])
+            # iaa.Invert(0.5),
+            # iaa.Sometimes(0.5, iaa.ContrastNormalization((0.5, 1.5))),
+            iaa.OneOf([
+                 iaa.Noop(),
+                 # iaa.OneOf([
+                 #     iaa.Add((-10, 10)),
+                 #     iaa.AddElementwise((-10, 10)),
+                 #     iaa.Multiply((0.95, 1.05)),
+                 #     iaa.MultiplyElementwise((0.95, 1.05)),
+                 # ]),
+                 # iaa.OneOf([
+                 #      iaa.GaussianBlur(sigma=(0.0, 1.0)),
+                 #      iaa.AverageBlur(k=(2, 5)),
+                 #      iaa.MedianBlur(k=(3, 5))
+                 # ])
+             ])
+        ], random_order=False)
 
     def __getitem__(self, idx):
 
@@ -71,31 +93,26 @@ class Salt(Dataset):
         img = self.imgs[idx]
         mask = self.masks[idx]
 
-        H = 128
-        W = 128
+        '''
+        imsave(f'output/image/{idx}_img.png', img)
+        imsave(f'output/image/{idx}_mask.png', mask)
+        '''
 
         if self.mode == 'train':
             img_mask = np.stack([img, mask], axis=-1)
 
+            img_mask = np.pad(img_mask, ((23, 24), (23, 24), (0, 0)), mode='reflect')
+
+            # float -> uint8
             img_mask *= 255
             img_mask = img_mask.astype(np.uint8)
 
-            # pad and crop
-            img_mask = np.pad(img_mask, ((23, 24), (23, 24), (0, 0)), mode='reflect')
-            '''
-            crop_idx_W = np.random.randint(20)
-            crop_idx_H = np.random.randint(20)
-            img_mask = img_mask[crop_idx_H:crop_idx_H+H, crop_idx_W:crop_idx_W+W, :]
-
-            # FlipLR (50%)
-            flip_idx = np.random.randint(20)
-            if flip_idx < 10:
-                img_mask = img_mask[:, ::-1, :]
-            '''
-            img_mask = self.aug_geo.augment_image(img_mask)
+            # augment
+            img_mask = self.aug_geo1.augment_image(img_mask)
+            img_mask = self.aug_geo2.augment_image(img_mask)
             img_mask[:, :, 0] = self.aug_intensity.augment_image(img_mask[:, :, 0])
 
-            #
+            # uint8 -> float
             img_mask = img_mask.astype(np.float32)
             img_mask /= 255
 
@@ -105,6 +122,11 @@ class Salt(Dataset):
         else:
             img = np.pad(img, ((13, 14), (13, 14)), 'reflect')
             mask = np.pad(mask, ((13, 14), (13, 14)), 'reflect')
+
+        '''
+        imsave(f'output/image/{idx}_img_aug.png', img)
+        imsave(f'output/image/{idx}_mask_aug.png', mask)
+        '''
 
         # sample return
         img = np.expand_dims(img, axis=0)
