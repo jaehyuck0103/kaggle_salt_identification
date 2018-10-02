@@ -128,8 +128,13 @@ class Salt(Dataset):
         imsave(f'output/image/{idx}_mask_aug.png', mask)
         '''
 
+        # Add depth channels
+        yy, _ = np.mgrid[1:129, 1:129] / 128
+        ch3 = img * yy
+
+        img = np.stack([img, yy, ch3], axis=0)
+
         # sample return
-        img = np.expand_dims(img, axis=0)
         mask = np.expand_dims(mask, axis=0)
         sample = {'img': img, 'mask': mask}
 
@@ -158,8 +163,13 @@ class SaltTest(Dataset):
 
         img = np.pad(img, ((13, 14), (13, 14)), 'reflect')
 
+        # Add depth channels
+        yy, _ = np.mgrid[1:129, 1:129] / 128
+        ch3 = img * yy
+
+        img = np.stack([img, yy, ch3], axis=0)
+
         # sample return
-        img = np.expand_dims(img, axis=0)
         sample = {'img': img, 'file_name': file_name}
 
         return sample

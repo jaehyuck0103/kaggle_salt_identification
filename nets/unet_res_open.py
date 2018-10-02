@@ -92,7 +92,6 @@ class UNetResOpen(nn.Module):
         self.final = nn.Conv2d(num_filters * 4, num_classes, kernel_size=1)
 
     def forward(self, x):
-        x = x.expand(-1, 3, -1, -1)    # gray -> rgb
         input_adjust = self.input_adjust(x)
         conv1 = self.conv1(input_adjust)
         conv2 = self.conv2(conv1)
