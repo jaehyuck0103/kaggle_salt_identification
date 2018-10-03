@@ -55,7 +55,7 @@ class UNetResOpen(nn.Module):
             is_deconv (bool, optional):
     """
 
-    def __init__(self, encoder_depth=34, num_classes=1, num_filters=32, dropout_2d=0,
+    def __init__(self, encoder_depth=34, num_classes=1, num_filters=32, dropout_2d=0.4,
                  pretrained=True, is_deconv=True):
         super().__init__()
         self.num_classes = num_classes
@@ -82,24 +82,36 @@ class UNetResOpen(nn.Module):
         self.conv3 = self.encoder.layer3
         self.conv4 = self.encoder.layer4
 
-        self.dec4 = DecoderBlockV2(bottom_channel_nr, num_filters * 16, num_filters * 8, is_deconv)
+        self.dec4 = DecoderBlockV2(bottom_channel_nr, num_filters * 16,
+                                   num_filters * 8, is_deconv)
         self.dec3 = DecoderBlockV2(bottom_channel_nr // 2 + num_filters * 8, num_filters * 16,
                                    num_filters * 8, is_deconv)
         self.dec2 = DecoderBlockV2(bottom_channel_nr // 4 + num_filters * 8, num_filters * 8,
                                    num_filters * 2, is_deconv)
         self.dec1 = DecoderBlockV2(bottom_channel_nr // 8 + num_filters * 2, num_filters * 4,
                                    num_filters * 4, is_deconv)
-        self.final = nn.Conv2d(num_filters * 4, num_classes, kernel_size=1)
+        self.final = nn.Conv2d(num_filters * 38, num_classes, kernel_size=1)
 
     def forward(self, x):
         input_adjust = self.input_adjust(x)
         conv1 = self.conv1(input_adjust)
         conv2 = self.conv2(conv1)
         conv3 = self.conv3(conv2)
-        center = self.conv4(conv3)
-        dec4 = self.dec4(center)
+        conv4 = self.conv4(conv3)
+        dec4 = self.dec4(conv4)
         dec3 = self.dec3(torch.cat([dec4, conv3], 1))
         dec2 = self.dec2(torch.cat([dec3, conv2], 1))
-        dec1 = F.dropout2d(self.dec1(torch.cat([dec2, conv1], 1)), p=self.dropout_2d)
-        y = self.final(dec1)
+        dec1 = self.dec1(torch.cat([dec2, conv1], 1))
+
+        # hypercolumn
+        y = torch.cat((
+            dec1,
+            F.interpolate(dec2, scale_factor=2, mode='bilinear'),
+            F.interpolate(dec3, scale_factor=4, mode='bilinear'),
+            F.interpolate(dec4, scale_factor=8, mode='bilinear'),
+            F.interpolate(conv4, scale_factor=16, mode='bilinear'),
+        ), 1)
+
+        y = F.dropout2d(y, p=self.dropout_2d)
+        y = self.final(y)
         return y

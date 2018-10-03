@@ -166,7 +166,7 @@ class UNetAgent():
             self.optimizer.step()
 
             # metrics
-            cur_acc = torch.sum((pred > 0) == (masks > 0.5)).item() / imgs.numel()
+            cur_acc = torch.sum((pred > 0) == (masks > 0.5)).item() / masks.numel()
 
             epoch_loss.update(cur_loss.item(), imgs.size(0))
             epoch_acc.update(cur_acc, imgs.size(0))
