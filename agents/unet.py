@@ -108,6 +108,12 @@ class UNetAgent():
 
     def train(self):
 
+        # temp
+        from shutil import copy2  # NOQA
+        os.makedirs(self.cfg.CHECKPOINT_DIR, exist_ok=True)
+        copy2('./nets/unet_res_open.py', self.cfg.CHECKPOINT_DIR)
+
+        #
         num_bad_epochs = 0
         for epoch in range(self.current_epoch, self.cfg.MAX_EPOCH):
             self.current_epoch = epoch
@@ -145,6 +151,8 @@ class UNetAgent():
         # Initialize average meters
         epoch_loss = AverageMeter()
         epoch_acc = AverageMeter()
+        epoch_iou = AverageMeter()
+        epoch_filtered_iou = AverageMeter()
 
         tqdm_batch = tqdm(self.train_loader, f'Epoch-{self.current_epoch}-')
         for x in tqdm_batch:
@@ -166,15 +174,24 @@ class UNetAgent():
             self.optimizer.step()
 
             # metrics
-            cur_acc = torch.sum((pred > 0) == (masks > 0.5)).item() / masks.numel()
+            pred_t = torch.sigmoid(pred) > 0.5
+            masks_t = masks > 0.5
 
-            epoch_loss.update(cur_loss.item(), imgs.size(0))
-            epoch_acc.update(cur_acc, imgs.size(0))
+            cur_acc = torch.sum(pred_t == masks_t).item() / masks.numel()
+            cur_iou = iou_pytorch(pred_t, masks_t)
+            cur_filtered_iou = iou_pytorch(remove_small_mask_batch(pred_t), masks_t)
+
+            batch_size = imgs.shape[0]
+            epoch_loss.update(cur_loss.item(), batch_size)
+            epoch_acc.update(cur_acc, batch_size)
+            epoch_iou.update(cur_iou.item(), batch_size)
+            epoch_filtered_iou.update(cur_filtered_iou.item(), batch_size)
 
         tqdm_batch.close()
 
         logging.info(f'Training at epoch- {self.current_epoch} |'
-                     f'loss: {epoch_loss.val:.5} - Acc: {epoch_acc.val:.5}')
+                     f'loss: {epoch_loss.val:.5} - Acc: {epoch_acc.val:.5}'
+                     f'- IOU: {epoch_iou.val:.5} - Filtered IOU: {epoch_filtered_iou.val:.5}')
 
     def validate(self):
 
