@@ -107,13 +107,6 @@ class UNetAgent():
         logging.info(f'Checkpoint loaded successfully at (epoch {checkpoint["epoch"]})')
 
     def train(self):
-
-        # temp
-        from shutil import copy2  # NOQA
-        os.makedirs(self.cfg.CHECKPOINT_DIR, exist_ok=True)
-        copy2('./nets/unet_res_open.py', self.cfg.CHECKPOINT_DIR)
-
-        #
         num_bad_epochs = 0
         for epoch in range(self.current_epoch, self.cfg.MAX_EPOCH):
             self.current_epoch = epoch

@@ -32,12 +32,22 @@ torch.backends.cudnn.deterministic = True
 
 
 def train(cfg):
+
+    # temp
+    from shutil import copy2  # NOQA
+    os.makedirs(cfg.CHECKPOINT_DIR, exist_ok=True)
+    copy2('./nets/unet_res_open.py', cfg.CHECKPOINT_DIR)
+    copy2('./configs/UNetResOpen2.json', cfg.CHECKPOINT_DIR)
+
     for i in cfg.KFOLD_I_LIST:
         cfg.KFOLD_I = i
         agent = UNetAgent(cfg)
         if hasattr(cfg, 'FINETUNE_DIR'):
             agent.load_checkpoint(cfg.FINETUNE_DIR)
         agent.train()
+
+    # logging configs
+    logging.info(cfg)
 
 
 def test(cfg):

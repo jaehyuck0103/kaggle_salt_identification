@@ -134,7 +134,14 @@ class Salt(Dataset):
 
         img = np.stack([img, yy, ch3], axis=0)
 
+        # Normalize
+        img[0] = (img[0] - 0.485) / 0.229
+        img[1] = (img[1] - 0.456) / 0.224
+        img[2] = (img[2] - 0.406) / 0.225
+
         # sample return
+        mask[mask >= 0.5] = 1
+        mask[mask < 0.5] = 0
         mask = np.expand_dims(mask, axis=0)
         sample = {'img': img, 'mask': mask}
 
@@ -168,6 +175,11 @@ class SaltTest(Dataset):
         ch3 = img * yy
 
         img = np.stack([img, yy, ch3], axis=0)
+
+        # Normalize
+        img[0] = (img[0] - 0.485) / 0.229
+        img[1] = (img[1] - 0.456) / 0.224
+        img[2] = (img[2] - 0.406) / 0.225
 
         # sample return
         sample = {'img': img, 'file_name': file_name}
