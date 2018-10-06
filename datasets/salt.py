@@ -56,7 +56,7 @@ class Salt(Dataset):
             # General
             iaa.Fliplr(0.5),
             iaa.Crop(px=(5, 15), keep_size=False),
-            # iaa.Sometimes(1.0, iaa.Affine(rotate=(-10, 10), mode='reflect')),
+            # iaa.Sometimes(0.5, iaa.Affine(rotate=(-10, 10), mode='reflect')),
 
             # Deformations
             # iaa.Sometimes(0.3, iaa.PiecewiseAffine(scale=(0.04, 0.08))),
@@ -68,8 +68,8 @@ class Salt(Dataset):
         ], random_order=False)
 
         self.aug_intensity = iaa.Sequential([
-            # iaa.Invert(0.5),
-            # iaa.Sometimes(0.5, iaa.ContrastNormalization((0.5, 1.5))),
+            # iaa.Invert(0.3),
+            # iaa.Sometimes(0.3, iaa.ContrastNormalization((0.5, 1.5))),
             iaa.OneOf([
                  iaa.Noop(),
                  # iaa.OneOf([
@@ -79,9 +79,9 @@ class Salt(Dataset):
                  #     iaa.MultiplyElementwise((0.95, 1.05)),
                  # ]),
                  # iaa.OneOf([
-                 #      iaa.GaussianBlur(sigma=(0.0, 1.0)),
-                 #      iaa.AverageBlur(k=(2, 5)),
-                 #      iaa.MedianBlur(k=(3, 5))
+                 #     iaa.GaussianBlur(sigma=(0.0, 1.0)),
+                 #     iaa.AverageBlur(k=(2, 5)),
+                 #     iaa.MedianBlur(k=(3, 5))
                  # ])
              ])
         ], random_order=False)
@@ -101,7 +101,7 @@ class Salt(Dataset):
         if self.mode == 'train':
             img_mask = np.stack([img, mask], axis=-1)
 
-            img_mask = np.pad(img_mask, ((23, 24), (23, 24), (0, 0)), mode='reflect')
+            img_mask = np.pad(img_mask, ((23, 24), (23, 24), (0, 0)), mode='edge')
 
             # float -> uint8
             img_mask *= 255
@@ -120,8 +120,8 @@ class Salt(Dataset):
             img = img_mask[:, :, 0].copy()
             mask = img_mask[:, :, 1].copy()
         else:
-            img = np.pad(img, ((13, 14), (13, 14)), 'reflect')
-            mask = np.pad(mask, ((13, 14), (13, 14)), 'reflect')
+            img = np.pad(img, ((13, 14), (13, 14)), 'edge')
+            mask = np.pad(mask, ((13, 14), (13, 14)), 'edge')
 
         '''
         imsave(f'output/image/{idx}_img_aug.png', img)
@@ -168,7 +168,7 @@ class SaltTest(Dataset):
         file_name = os.path.basename(file_name)
         file_name = os.path.splitext(file_name)[0]
 
-        img = np.pad(img, ((13, 14), (13, 14)), 'reflect')
+        img = np.pad(img, ((13, 14), (13, 14)), 'edge')
 
         # Add depth channels
         yy, _ = np.mgrid[1:129, 1:129] / 128

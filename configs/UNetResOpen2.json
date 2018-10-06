@@ -8,7 +8,7 @@
 
     "MAX_EPOCH": 1000,
     "LEARNING_RATE": 0.0075,
-    "MIN_LR": 5e-6,
+    "MIN_LR": 2e-4,
     "LR_DECAY_RATE": 0.5,
     "PATIENCE": 10,
 

@@ -8,7 +8,7 @@
 
     "MAX_EPOCH": 1000,
     "LEARNING_RATE": 0.005,
-    "MIN_LR": 5e-6,
+    "MIN_LR": 2e-4,
     "LR_DECAY_RATE": 0.5,
     "PATIENCE": 10,
 
@@ -17,5 +17,5 @@
 
     "LOSS": "LOVASZ",
     "OPTIMIZER": "SGD",
-    "FINETUNE_VER": "20181001_222306"
+    "FINETUNE_VER": "20181006_192850"
 }
