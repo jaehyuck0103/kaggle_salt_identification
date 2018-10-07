@@ -61,9 +61,9 @@ class UNetAgent():
         else:
             raise ValueError(f'Unknown Optimizer: {cfg.OPTIMIZER}')
 
-        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=1,
-                                                         gamma=cfg.LR_DECAY_RATE)
-        self.scheduler.step()
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            self.optimizer, mode='max', factor=cfg.LR_DECAY_RATE,
+            patience=cfg.PATIENCE, verbose=True, threshold=0)
 
         if cfg.LOSS == 'CrossEntropy':
             self.loss = nn.BCEWithLogitsLoss()
@@ -74,7 +74,6 @@ class UNetAgent():
 
         # Counter Setting
         self.current_epoch = 0
-        self.best_valid_iou = 0
 
     def save_checkpoint(self):
 
@@ -108,33 +107,30 @@ class UNetAgent():
 
     def train(self):
         num_bad_epochs = 0
+        best_valid_iou = 0
         for epoch in range(self.current_epoch, self.cfg.MAX_EPOCH):
             self.current_epoch = epoch
             self.train_one_epoch()
 
             # Validation
             valid_iou = self.validate()
-            is_best = valid_iou > self.best_valid_iou
+
+            # LR Scheduling
+            self.scheduler.step(valid_iou)
+
+            # Early Stop
+            is_best = valid_iou > best_valid_iou
             if is_best:
-                self.best_valid_iou = valid_iou
+                best_valid_iou = valid_iou
                 num_bad_epochs = 0
             else:
                 num_bad_epochs += 1
 
-            # LR Decaying
-            if num_bad_epochs == self.cfg.PATIENCE:
-                self.scheduler.step()
-                num_bad_epochs = 0
-
-                cur_lr = self.optimizer.param_groups[0]['lr']
-                logging.info(f'LR decaying to {cur_lr}')
-
-                # Early Stopping
-                if cur_lr < self.cfg.MIN_LR:
-                    break
+            if num_bad_epochs == self.cfg.EARLY_STOP:
+                break
 
         self.save_checkpoint()
-        return self.best_valid_iou
+        return best_valid_iou
 
     def train_one_epoch(self):
 

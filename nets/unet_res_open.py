@@ -56,7 +56,7 @@ class UNetResOpen(nn.Module):
             is_deconv (bool, optional):
     """
 
-    def __init__(self, encoder_depth=34, num_classes=1, num_filters=32, dropout_2d=0.0,
+    def __init__(self, encoder_depth=34, num_classes=1, num_filters=32, dropout_2d=0.4,
                  pretrained=True, is_deconv=False):
         super().__init__()
         self.num_classes = num_classes

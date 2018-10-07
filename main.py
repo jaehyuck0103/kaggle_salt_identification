@@ -38,6 +38,7 @@ def train(cfg):
     os.makedirs(cfg.CHECKPOINT_DIR, exist_ok=True)
     copy2('./nets/unet_res_open.py', cfg.CHECKPOINT_DIR)
     copy2('./configs/UNetResOpen2.json', cfg.CHECKPOINT_DIR)
+    copy2('./datasets/salt.py', cfg.CHECKPOINT_DIR)
 
     for i in cfg.KFOLD_I_LIST:
         cfg.KFOLD_I = i
