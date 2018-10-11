@@ -40,12 +40,14 @@ def train(cfg):
     copy2('./configs/UNetResOpen2.json', cfg.CHECKPOINT_DIR)
     copy2('./datasets/salt.py', cfg.CHECKPOINT_DIR)
 
-    for i in cfg.KFOLD_I_LIST:
-        cfg.KFOLD_I = i
-        agent = UNetAgent(cfg)
-        if hasattr(cfg, 'FINETUNE_DIR'):
-            agent.load_checkpoint(cfg.FINETUNE_DIR)
-        agent.train()
+    for cfg.KFOLD_I in cfg.KFOLD_I_LIST:
+        for cfg.CYCLE_I in range(cfg.CYCLE_N):
+            agent = UNetAgent(cfg)
+            if hasattr(cfg, 'FINETUNE_DIR') and cfg.CYCLE_I == 0:
+                agent.load_checkpoint(cfg.FINETUNE_DIR, 0)
+            elif cfg.CYCLE_I > 0:
+                agent.load_checkpoint(cfg.CHECKPOINT_DIR, cfg.CYCLE_I-1)
+            agent.train()
 
     # logging configs
     logging.info(cfg)
@@ -61,7 +63,7 @@ def test(cfg):
     for i in cfg.KFOLD_I_LIST:
         cfg.KFOLD_I = i
         agent = UNetAgent(cfg)
-        agent.load_checkpoint(cfg.CHECKPOINT_DIR)
+        agent.load_checkpoint(cfg.CHECKPOINT_DIR, cfg.CYCLE_N-1)
         agents.append(agent)
 
     tqdm_batch = tqdm(test_loader, f'Test')

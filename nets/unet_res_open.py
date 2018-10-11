@@ -2,13 +2,13 @@ from torch import nn
 from torch.nn import functional as F
 import torch
 import torchvision
+from torchvision.models.resnet import BasicBlock
 
 
 class ConvBnRelu(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=3):
+    def __init__(self, in_channels, out_channels):
         super().__init__()
-        self.conv = nn.Sequential(nn.Conv2d(in_channels, out_channels,
-                                            kernel_size, padding=kernel_size//2),
+        self.conv = nn.Sequential(nn.Conv2d(in_channels, out_channels, 3, padding=1),
                                   nn.BatchNorm2d(out_channels),
                                   nn.ReLU(inplace=True)
                                   )
@@ -29,9 +29,17 @@ class DecoderBlockV2(nn.Module):
             nn.ReLU(inplace=True),
         )
 
+        '''
         self.upsample = nn.Sequential(
             ConvBnRelu(in_channels, out_channels),
             nn.Upsample(scale_factor=2, mode='bilinear'),
+        )
+        '''
+
+        self.upsample = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode='bilinear'),
+            ConvBnRelu(in_channels, out_channels),
+            BasicBlock(out_channels, out_channels),
         )
 
     def forward(self, x):
@@ -57,20 +65,17 @@ class UNetResOpen(nn.Module):
     """
 
     def __init__(self, encoder_depth=34, num_classes=1, num_filters=32, dropout_2d=0.4,
-                 pretrained=True, is_deconv=False):
+                 pretrained=True, is_deconv=True):
         super().__init__()
         self.num_classes = num_classes
         self.dropout_2d = dropout_2d
 
         if encoder_depth == 34:
             self.encoder = torchvision.models.resnet34(pretrained=pretrained)
-            bottom_channel_nr = 512
         elif encoder_depth == 101:
             self.encoder = torchvision.models.resnet101(pretrained=pretrained)
-            bottom_channel_nr = 2048
         elif encoder_depth == 152:
             self.encoder = torchvision.models.resnet152(pretrained=pretrained)
-            bottom_channel_nr = 2048
         else:
             raise NotImplementedError('only 34, 101, 152 version of Resnet are implemented')
 
@@ -78,37 +83,20 @@ class UNetResOpen(nn.Module):
                                           self.encoder.bn1,
                                           self.encoder.relu)
 
-        self.enc1 = self.encoder.layer1
-        self.enc2 = self.encoder.layer2
-        self.enc3 = self.encoder.layer3
-        self.enc4 = self.encoder.layer4
+        self.enc1 = self.encoder.layer1  # 64x64x64
+        self.enc2 = self.encoder.layer2  # 128x32x32
+        self.enc3 = self.encoder.layer3  # 256x16x16
+        self.enc4 = self.encoder.layer4  # 512x8x8
 
-        self.squ1 = ConvBnRelu(64, 32, kernel_size=1)
-        self.squ2 = ConvBnRelu(128, 32, kernel_size=1)
-        self.squ3 = ConvBnRelu(256, 32, kernel_size=1)
-        self.squ4 = ConvBnRelu(512, 64, kernel_size=1)
+        self.center = nn.Sequential(ConvBnRelu(512, 256),
+                                    ConvBnRelu(256, 256))
 
-        self.dec4 = DecoderBlockV2(64, num_filters * 16,
-                                   num_filters, is_deconv)
-        self.dec3 = DecoderBlockV2(32 + num_filters, num_filters * 8,
-                                   num_filters, is_deconv)
-        self.dec2 = DecoderBlockV2(32 + num_filters, num_filters * 4,
-                                   num_filters, is_deconv)
-        self.dec1 = DecoderBlockV2(32 + num_filters, num_filters * 2,
-                                   num_filters, is_deconv)
-        self.final = nn.Sequential(
-            ConvBnRelu(192, num_filters * 2),
-            nn.Conv2d(num_filters * 2, num_classes, kernel_size=1),
-        )
-
-        '''
-        print(sum(p.numel() for p in self.dec4.parameters() if p.requires_grad))
-        print(sum(p.numel() for p in self.dec3.parameters() if p.requires_grad))
-        print(sum(p.numel() for p in self.dec2.parameters() if p.requires_grad))
-        print(sum(p.numel() for p in self.dec1.parameters() if p.requires_grad))
-        print(sum(p.numel() for p in self.final.parameters() if p.requires_grad))
-        exit()
-        '''
+        self.dec4 = DecoderBlockV2(256, 512, 64, is_deconv)
+        self.dec3 = DecoderBlockV2(64 + 256, 512, 64, is_deconv)
+        self.dec2 = DecoderBlockV2(64 + 128, 256, 64, is_deconv)
+        self.dec1 = DecoderBlockV2(64 + 64, 128, 64, is_deconv)
+        self.final = nn.Sequential(ConvBnRelu(512, 128),
+                                   nn.Conv2d(128, num_classes, kernel_size=1))
 
     def forward(self, x):
         input_adjust = self.input_adjust(x)
@@ -116,16 +104,11 @@ class UNetResOpen(nn.Module):
         enc2 = self.enc2(enc1)
         enc3 = self.enc3(enc2)
         enc4 = self.enc4(enc3)
-
-        squ1 = self.squ1(enc1)
-        squ2 = self.squ2(enc2)
-        squ3 = self.squ3(enc3)
-        squ4 = self.squ4(enc4)
-
-        dec4 = self.dec4(squ4)
-        dec3 = self.dec3(torch.cat([dec4, squ3], 1))
-        dec2 = self.dec2(torch.cat([dec3, squ2], 1))
-        dec1 = self.dec1(torch.cat([dec2, squ1], 1))
+        center = self.center(enc4)
+        dec4 = self.dec4(center)
+        dec3 = self.dec3(torch.cat([dec4, enc3], 1))
+        dec2 = self.dec2(torch.cat([dec3, enc2], 1))
+        dec1 = self.dec1(torch.cat([dec2, enc1], 1))
 
         # hypercolumn
         y = torch.cat((
@@ -133,7 +116,7 @@ class UNetResOpen(nn.Module):
             F.interpolate(dec2, scale_factor=2, mode='bilinear'),
             F.interpolate(dec3, scale_factor=4, mode='bilinear'),
             F.interpolate(dec4, scale_factor=8, mode='bilinear'),
-            F.interpolate(squ4, scale_factor=16, mode='bilinear'),
+            F.interpolate(center, scale_factor=16, mode='bilinear'),
         ), 1)
 
         y = F.dropout2d(y, p=self.dropout_2d)

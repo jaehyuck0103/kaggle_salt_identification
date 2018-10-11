@@ -61,9 +61,15 @@ class UNetAgent():
         else:
             raise ValueError(f'Unknown Optimizer: {cfg.OPTIMIZER}')
 
-        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            self.optimizer, mode='max', factor=cfg.LR_DECAY_RATE,
-            patience=cfg.PATIENCE, verbose=True, threshold=0)
+        if cfg.SCHEDULER == 'Plateau':
+            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                self.optimizer, mode='max', factor=cfg.LR_DECAY_RATE,
+                patience=cfg.PATIENCE, verbose=True, threshold=0)
+        elif cfg.SCHEDULER == 'Cosine':
+            self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                self.optimizer, T_max=cfg.NUM_EPOCH, eta_min=cfg.ETA_MIN)
+        else:
+            raise ValueError(f'Unknown Scheduler: {cfg.SCHEDULER}')
 
         if cfg.LOSS == 'CrossEntropy':
             self.loss = nn.BCEWithLogitsLoss()
@@ -83,7 +89,7 @@ class UNetAgent():
             'optimizer': self.optimizer.state_dict(),
         }
         # Save the state
-        filename = f'UNet_{self.cfg.KFOLD_I}.ckpt'
+        filename = f'UNet_{self.cfg.KFOLD_I}_{self.cfg.CYCLE_I}.ckpt'
         os.makedirs(self.cfg.CHECKPOINT_DIR, exist_ok=True)
         torch.save(state, os.path.join(self.cfg.CHECKPOINT_DIR, filename))
         '''
@@ -93,9 +99,9 @@ class UNetAgent():
                             self.config.checkpoint_dir + 'model_best.pth.tar')
         '''
 
-    def load_checkpoint(self, load_dir):
+    def load_checkpoint(self, load_dir, cycle_i):
 
-        filename = f'UNet_{self.cfg.KFOLD_I}.ckpt'
+        filename = f'UNet_{self.cfg.KFOLD_I}_{cycle_i}.ckpt'
         logging.info("Loading checkpoint '{}'".format(filename))
         checkpoint = torch.load(os.path.join(load_dir, filename))
 
@@ -108,7 +114,7 @@ class UNetAgent():
     def train(self):
         num_bad_epochs = 0
         best_valid_iou = 0
-        for epoch in range(self.current_epoch, self.cfg.MAX_EPOCH):
+        for epoch in range(self.current_epoch, self.current_epoch + self.cfg.NUM_EPOCH):
             self.current_epoch = epoch
             self.train_one_epoch()
 
@@ -116,7 +122,10 @@ class UNetAgent():
             valid_iou = self.validate()
 
             # LR Scheduling
-            self.scheduler.step(valid_iou)
+            if self.cfg.SCHEDULER == 'Plateau':
+                self.scheduler.step(valid_iou)
+            else:
+                self.scheduler.step()
 
             # Early Stop
             is_best = valid_iou > best_valid_iou

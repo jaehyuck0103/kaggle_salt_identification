@@ -6,16 +6,18 @@
     "VALID_BATCH_SIZE": 32,
     "TEST_BATCH_SIZE": 32,
 
-    "MAX_EPOCH": 1000,
-    "LEARNING_RATE": 0.005,
+    "NUM_EPOCH": 30,
+    "LEARNING_RATE": 0.01,
+ 
+    "SCHEDULER": "Plateau",
     "LR_DECAY_RATE": 0.5,
-    "PATIENCE": 10,
-    "EARLY_STOP": 20,
+    "PATIENCE": 30,
+    "EARLY_STOP": 30,
+    "CYCLE_N": 1,
 
     "KFOLD_N": 5,
     "KFOLD_I_LIST": [0],
 
-    "LOSS": "LOVASZ",
-    "OPTIMIZER": "SGD",
-    "FINETUNE_VER": "20181006_192850"
+    "LOSS": "CrossEntropy",
+    "OPTIMIZER": "SGD"
 }
