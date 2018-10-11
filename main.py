@@ -33,12 +33,13 @@ torch.backends.cudnn.deterministic = True
 
 def train(cfg):
 
+    '''
     # temp
     from shutil import copy2  # NOQA
     os.makedirs(cfg.CHECKPOINT_DIR, exist_ok=True)
     copy2('./nets/unet_res_open.py', cfg.CHECKPOINT_DIR)
-    copy2('./configs/UNetResOpen2.json', cfg.CHECKPOINT_DIR)
     copy2('./datasets/salt.py', cfg.CHECKPOINT_DIR)
+    '''
 
     for cfg.KFOLD_I in cfg.KFOLD_I_LIST:
         for cfg.CYCLE_I in range(cfg.CYCLE_N):

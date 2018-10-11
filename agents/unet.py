@@ -8,10 +8,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from nets.unet_basic import UNetBasic
-from nets.unet_res import UNetRes
-from nets.unet_res34 import UNetRes34
 from nets.unet_res_open import UNetResOpen
+from nets.unet_res_light import UNetResLight
 from datasets.salt import Salt
 
 from utils.metrics import AverageMeter, iou_pytorch
@@ -42,14 +40,10 @@ class UNetAgent():
         '''
 
         # Network Setting
-        if cfg.NET == 'UNetBasic':
-            self.net = UNetBasic(cfg).to(self.device)
-        elif cfg.NET == 'UNetRes':
-            self.net = UNetRes(cfg).to(self.device)
-        elif cfg.NET == 'UNetRes34':
-            self.net = UNetRes34(cfg).to(self.device)
-        elif cfg.NET == 'UNetResOpen':
+        if cfg.NET == 'UNetResOpen':
             self.net = UNetResOpen().to(self.device)
+        elif cfg.NET == 'UNetResLight':
+            self.net = UNetResLight().to(self.device)
         else:
             raise ValueError(f'Unknown Network: {cfg.NET}')
 
