@@ -22,31 +22,29 @@ class DecoderBlockV2(nn.Module):
         super(DecoderBlockV2, self).__init__()
         self.is_deconv = is_deconv
 
-        self.deconv = nn.Sequential(
-            ConvBnRelu(in_channels, middle_channels),
-            nn.ConvTranspose2d(middle_channels, out_channels, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
-        )
-
-        '''
-        self.upsample = nn.Sequential(
-            ConvBnRelu(in_channels, out_channels),
-            nn.Upsample(scale_factor=2, mode='bilinear'),
-        )
-        '''
-
-        self.upsample = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='bilinear'),
-            ConvBnRelu(in_channels, out_channels),
-            BasicBlock(out_channels, out_channels),
-        )
+        if self.is_deconv:
+            self.upsample = nn.Sequential(
+                ConvBnRelu(in_channels, middle_channels),
+                nn.ConvTranspose2d(middle_channels, out_channels,
+                                   kernel_size=4, stride=2, padding=1),
+                nn.BatchNorm2d(out_channels),
+                nn.ReLU(inplace=True),
+            )
+        else:
+            '''
+            self.upsample = nn.Sequential(
+                ConvBnRelu(in_channels, out_channels),
+                nn.Upsample(scale_factor=2, mode='bilinear'),
+            )
+            '''
+            self.upsample = nn.Sequential(
+                nn.Upsample(scale_factor=2, mode='bilinear'),
+                ConvBnRelu(in_channels, out_channels),
+                BasicBlock(out_channels, out_channels),
+            )
 
     def forward(self, x):
-        if self.is_deconv:
-            x = self.deconv(x)
-        else:
-            x = self.upsample(x)
+        x = self.upsample(x)
         return x
 
 
@@ -65,7 +63,7 @@ class UNetResHeavy(nn.Module):
     """
 
     def __init__(self, encoder_depth=34, num_classes=1, num_filters=32, dropout_2d=0.4,
-                 pretrained=True, is_deconv=False):
+                 pretrained=True, is_deconv=True):
         super().__init__()
         self.num_classes = num_classes
         self.dropout_2d = dropout_2d
@@ -91,10 +89,10 @@ class UNetResHeavy(nn.Module):
         self.center = nn.Sequential(ConvBnRelu(512, 256),
                                     ConvBnRelu(256, 256))
 
-        self.dec4 = DecoderBlockV2(256, 512, 64, is_deconv)
-        self.dec3 = DecoderBlockV2(64 + 256, 512, 64, is_deconv)
+        self.dec4 = DecoderBlockV2(256, 256, 64, is_deconv)
+        self.dec3 = DecoderBlockV2(64 + 256, 256, 64, is_deconv)
         self.dec2 = DecoderBlockV2(64 + 128, 256, 64, is_deconv)
-        self.dec1 = DecoderBlockV2(64 + 64, 128, 64, is_deconv)
+        self.dec1 = DecoderBlockV2(64 + 64, 256, 64, is_deconv)
         self.final = nn.Sequential(ConvBnRelu(512, 128),
                                    nn.Conv2d(128, num_classes, kernel_size=1))
 

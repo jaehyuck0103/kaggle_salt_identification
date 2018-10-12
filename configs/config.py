@@ -13,7 +13,7 @@ def process_config(args):
 
     if args.CFG_NAME == 'UNetResHeavy':
         cfg = UNetResHeavyConfig()
-    if args.CFG_NAME == 'UNetResLight':
+    elif args.CFG_NAME == 'UNetResLight':
         cfg = UNetResLightConfig()
     else:
         raise ValueError(f'Unknown CFG_NAME: {args.CFG_NAME}')
