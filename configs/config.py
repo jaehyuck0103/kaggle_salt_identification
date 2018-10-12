@@ -1,28 +1,27 @@
 import os
-import json
 from datetime import datetime
+
+from .UNetResHeavy import Config as UNetResHeavyConfig
+from .UNetResLight import Config as UNetResLightConfig
+
 
 FILE_DIR = os.path.abspath(os.path.dirname(__file__))
 ROOT_DIR = os.path.join(FILE_DIR, '../')
 
 
-def process_config(cfg):
+def process_config(args):
 
-    json_path = os.path.join(FILE_DIR, f'{cfg.JSON_CFG}.json')
-    with open(json_path) as f:
-        json_cfg = json.load(f)
-
-    for key, val in json_cfg.items():
-        if key not in cfg:
-            setattr(cfg, key, val)
+    if args.CFG_NAME == 'UNetResHeavy':
+        cfg = UNetResHeavyConfig()
+    if args.CFG_NAME == 'UNetResLight':
+        cfg = UNetResLightConfig()
+    else:
+        raise ValueError(f'Unknown CFG_NAME: {args.CFG_NAME}')
 
     init_time = datetime.now().strftime('%Y%m%d_%H%M%S')
-    if cfg.MODE == 'train':
-        cfg.CHECKPOINT_DIR = os.path.join(ROOT_DIR, f'output/{init_time}')
+    if args.MODE == 'test' or args.VER_TO_LOAD:
+        cfg.COMMON.CHECKPOINT_DIR = os.path.join(ROOT_DIR, f'output/{args.VER_TO_LOAD}')
     else:
-        cfg.CHECKPOINT_DIR = os.path.join(ROOT_DIR, f'output/{cfg.VER_TO_LOAD}')
-
-    if hasattr(cfg, 'FINETUNE_VER'):
-        cfg.FINETUNE_DIR = os.path.join(ROOT_DIR, f'output/{cfg.FINETUNE_VER}')
+        cfg.COMMON.CHECKPOINT_DIR = os.path.join(ROOT_DIR, f'output/{init_time}')
 
     return cfg

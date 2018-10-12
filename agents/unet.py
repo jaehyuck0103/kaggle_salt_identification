@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from nets.unet_res_open import UNetResOpen
+from nets.unet_res_heavy import UNetResHeavy
 from nets.unet_res_light import UNetResLight
 from datasets.salt import Salt
 
@@ -19,11 +19,22 @@ from nets.lovasz_losses import lovasz_hinge
 
 
 class UNetAgent():
-    def __init__(self, cfg):
+    def __init__(self, cfg, predict_only=False):
         self.cfg = cfg
 
         # Device Setting
         self.device = torch.device('cuda')
+
+        # Network Setting
+        if cfg.NET == 'UNetResHeavy':
+            self.net = UNetResHeavy().to(self.device)
+        elif cfg.NET == 'UNetResLight':
+            self.net = UNetResLight().to(self.device)
+        else:
+            raise ValueError(f'Unknown Network: {cfg.NET}')
+
+        if predict_only:
+            return
 
         # Dataset Setting
         train_dataset = Salt(cfg, mode='train')
@@ -38,14 +49,6 @@ class UNetAgent():
             train_dataset[i]
         exit()
         '''
-
-        # Network Setting
-        if cfg.NET == 'UNetResOpen':
-            self.net = UNetResOpen().to(self.device)
-        elif cfg.NET == 'UNetResLight':
-            self.net = UNetResLight().to(self.device)
-        else:
-            raise ValueError(f'Unknown Network: {cfg.NET}')
 
         if cfg.OPTIMIZER == 'Adam':
             self.optimizer = torch.optim.Adam(self.net.parameters(), lr=cfg.LEARNING_RATE)
@@ -80,28 +83,20 @@ class UNetAgent():
         state = {
             'epoch': self.current_epoch,
             'state_dict': self.net.state_dict(),
-            'optimizer': self.optimizer.state_dict(),
         }
-        # Save the state
+
         filename = f'UNet_{self.cfg.KFOLD_I}_{self.cfg.CYCLE_I}.ckpt'
         os.makedirs(self.cfg.CHECKPOINT_DIR, exist_ok=True)
         torch.save(state, os.path.join(self.cfg.CHECKPOINT_DIR, filename))
-        '''
-        # If it is the best copy it to another file 'model_best.pth.tar'
-        if is_best:
-            shutil.copyfile(self.config.checkpoint_dir + filename,
-                            self.config.checkpoint_dir + 'model_best.pth.tar')
-        '''
 
-    def load_checkpoint(self, load_dir, cycle_i):
+    def load_checkpoint(self, load_dir):
 
-        filename = f'UNet_{self.cfg.KFOLD_I}_{cycle_i}.ckpt'
+        filename = f'UNet_{self.cfg.KFOLD_I}_{self.cfg.CYCLE_I-1}.ckpt'
         logging.info("Loading checkpoint '{}'".format(filename))
         checkpoint = torch.load(os.path.join(load_dir, filename))
 
         self.current_epoch = checkpoint['epoch'] + 1
         self.net.load_state_dict(checkpoint['state_dict'])
-        self.optimizer.load_state_dict(checkpoint['optimizer'])
 
         logging.info(f'Checkpoint loaded successfully at (epoch {checkpoint["epoch"]})')
 
@@ -120,6 +115,8 @@ class UNetAgent():
                 self.scheduler.step(valid_iou)
             else:
                 self.scheduler.step()
+
+            logging.info(f"Current LR: {self.optimizer.param_groups[0]['lr']}")
 
             # Early Stop
             is_best = valid_iou > best_valid_iou

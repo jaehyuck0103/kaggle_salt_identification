@@ -152,7 +152,7 @@ class Salt(Dataset):
 
 
 class SaltTest(Dataset):
-    def __init__(self, cfg, mode):
+    def __init__(self, cfg):
         super(SaltTest, self).__init__()
 
         self.cfg = cfg

@@ -41,30 +41,40 @@ def train(cfg):
     copy2('./datasets/salt.py', cfg.CHECKPOINT_DIR)
     '''
 
-    for cfg.KFOLD_I in cfg.KFOLD_I_LIST:
-        for cfg.CYCLE_I in range(cfg.CYCLE_N):
-            agent = UNetAgent(cfg)
-            if hasattr(cfg, 'FINETUNE_DIR') and cfg.CYCLE_I == 0:
-                agent.load_checkpoint(cfg.FINETUNE_DIR, 0)
-            elif cfg.CYCLE_I > 0:
-                agent.load_checkpoint(cfg.CHECKPOINT_DIR, cfg.CYCLE_I-1)
+    for KFOLD_I in cfg.COMMON.KFOLD_I_LIST:
+        for CYCLE_I in range(cfg.COMMON.CYCLE_N):
+
+            filename = f'UNet_{KFOLD_I}_{CYCLE_I}.ckpt'
+            if os.path.exists(os.path.join(cfg.COMMON.CHECKPOINT_DIR, filename)):
+                continue
+
+            cfg_dyn = cfg.get_train_config(CYCLE_I)
+            cfg_dyn.KFOLD_I = KFOLD_I
+            cfg_dyn.CYCLE_I = CYCLE_I
+            logging.info(vars(cfg_dyn))
+
+            agent = UNetAgent(cfg_dyn)
+            if CYCLE_I > 0:
+                agent.load_checkpoint(cfg.COMMON.CHECKPOINT_DIR)
             agent.train()
 
     # logging configs
-    logging.info(cfg)
+    logging.info(vars(cfg.COMMON))
 
 
 def test(cfg):
+    cfg = cfg.get_test_config()
+    cfg.CYCLE_I = cfg.CYCLE_N
 
-    test_dataset = SaltTest(cfg, mode='train')
+    test_dataset = SaltTest(cfg)
     test_loader = DataLoader(dataset=test_dataset, batch_size=cfg.TEST_BATCH_SIZE,
                              shuffle=False, num_workers=8)
 
     agents = []
     for i in cfg.KFOLD_I_LIST:
         cfg.KFOLD_I = i
-        agent = UNetAgent(cfg)
-        agent.load_checkpoint(cfg.CHECKPOINT_DIR, cfg.CYCLE_N-1)
+        agent = UNetAgent(cfg, predict_only=True)
+        agent.load_checkpoint(cfg.CHECKPOINT_DIR)
         agents.append(agent)
 
     tqdm_batch = tqdm(test_loader, f'Test')
@@ -98,14 +108,14 @@ if __name__ == '__main__':
 
     # Positional arguments
     parser.add_argument('MODE', type=str, choices=['train', 'test'])
-    parser.add_argument('JSON_CFG', type=str)
+    parser.add_argument('CFG_NAME', type=str)
 
     # Optional arguments
     parser.add_argument('--VER_TO_LOAD', type=str)
 
     # Fixed configs
-    cfg = parser.parse_args()
-    cfg = process_config(cfg)
+    args = parser.parse_args()
+    cfgs = process_config(args)
 
     # ------
     # Setting Root Logger
@@ -121,11 +131,8 @@ if __name__ == '__main__':
     ]
     logging.basicConfig(format=format, level=level, handlers=handlers)
 
-    # logging configs
-    logging.info(cfg)
-
     # -------
     # Run
     # -------
-    func = globals()[cfg.MODE]
-    func(cfg)
+    func = globals()[args.MODE]
+    func(cfgs)

@@ -50,7 +50,7 @@ class DecoderBlockV2(nn.Module):
         return x
 
 
-class UNetResOpen(nn.Module):
+class UNetResHeavy(nn.Module):
     """PyTorch U-Net model using ResNet(34, 101 or 152) encoder.
     UNet: https://arxiv.org/abs/1505.04597
     ResNet: https://arxiv.org/abs/1512.03385
@@ -65,7 +65,7 @@ class UNetResOpen(nn.Module):
     """
 
     def __init__(self, encoder_depth=34, num_classes=1, num_filters=32, dropout_2d=0.4,
-                 pretrained=True, is_deconv=True):
+                 pretrained=True, is_deconv=False):
         super().__init__()
         self.num_classes = num_classes
         self.dropout_2d = dropout_2d
