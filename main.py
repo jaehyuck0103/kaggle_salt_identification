@@ -3,14 +3,12 @@ import os
 import logging
 import warnings
 from datetime import datetime
-import random
 
 import numpy as np
 import pandas as pd
 from skimage.io import imsave
 from tqdm import tqdm
 
-import torch
 from torch.utils.data import DataLoader
 from agents.unet import UNetAgent
 from datasets.salt import SaltTest
@@ -23,12 +21,6 @@ warnings.filterwarnings('ignore', message='.*low contrast')
 warnings.filterwarnings('ignore', message='.*Anti')
 
 ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
-
-# Fix seed
-random.seed(910103)
-np.random.seed(910103)
-torch.manual_seed(910103)
-torch.backends.cudnn.deterministic = True
 
 
 def train(cfg):
