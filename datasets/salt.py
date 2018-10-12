@@ -56,11 +56,11 @@ class Salt(Dataset):
             # General
             iaa.Fliplr(0.5),
             iaa.Crop(px=(5, 15), keep_size=False),
-            # iaa.Sometimes(0.5, iaa.Affine(rotate=(-10, 10), mode='reflect')),
+            iaa.Sometimes(0.5, iaa.Affine(rotate=(-10, 10), mode='reflect')),
 
             # Deformations
             # iaa.Sometimes(0.3, iaa.PiecewiseAffine(scale=(0.04, 0.08))),
-            # iaa.Sometimes(0.3, iaa.PerspectiveTransform(scale=(0.05, 0.1))),
+            iaa.Sometimes(0.3, iaa.PerspectiveTransform(scale=(0.05, 0.1))),
         ], random_order=True)
 
         self.aug_geo2 = iaa.Sequential([
@@ -68,8 +68,8 @@ class Salt(Dataset):
         ], random_order=False)
 
         self.aug_intensity = iaa.Sequential([
-            # iaa.Invert(0.3),
-            # iaa.Sometimes(0.3, iaa.ContrastNormalization((0.5, 1.5))),
+            iaa.Invert(0.3),
+            iaa.Sometimes(0.3, iaa.ContrastNormalization((0.5, 1.5))),
             iaa.OneOf([
                  iaa.Noop(),
                  # iaa.OneOf([
