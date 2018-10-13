@@ -1,7 +1,9 @@
 from torch import nn
 from torch.nn import functional as F
 import torch
-import torchvision
+
+from .resnet import resnet34
+from .cbam import CBAM
 
 
 class ConvBnRelu(nn.Module):
@@ -10,6 +12,7 @@ class ConvBnRelu(nn.Module):
         self.conv = nn.Sequential(nn.Conv2d(in_channels, out_channels,
                                             kernel_size, padding=kernel_size//2),
                                   nn.BatchNorm2d(out_channels),
+                                  CBAM(out_channels, 16),
                                   nn.ReLU(inplace=True)
                                   )
 
@@ -62,7 +65,7 @@ class UNetResLight(nn.Module):
         self.num_classes = num_classes
         self.dropout_2d = dropout_2d
 
-        self.encoder = torchvision.models.resnet34(pretrained=pretrained)
+        self.encoder = resnet34(pretrained=pretrained)
 
         self.input_adjust = nn.Sequential(self.encoder.conv1,
                                           self.encoder.bn1,

@@ -1,8 +1,10 @@
 from torch import nn
 from torch.nn import functional as F
 import torch
-import torchvision
 from torchvision.models.resnet import BasicBlock
+
+from .resnet import resnet34
+from .cbam import CBAM
 
 
 class ConvBnRelu(nn.Module):
@@ -28,6 +30,7 @@ class DecoderBlockV2(nn.Module):
                 nn.ConvTranspose2d(middle_channels, out_channels,
                                    kernel_size=4, stride=2, padding=1),
                 nn.BatchNorm2d(out_channels),
+                CBAM(out_channels, 16),
                 nn.ReLU(inplace=True),
             )
         else:
@@ -62,20 +65,12 @@ class UNetResHeavy(nn.Module):
             is_deconv (bool, optional):
     """
 
-    def __init__(self, encoder_depth=34, num_classes=1, num_filters=32, dropout_2d=0.4,
-                 pretrained=True, is_deconv=True):
+    def __init__(self, num_classes=1, dropout_2d=0.4, pretrained=True, is_deconv=True):
         super().__init__()
         self.num_classes = num_classes
         self.dropout_2d = dropout_2d
 
-        if encoder_depth == 34:
-            self.encoder = torchvision.models.resnet34(pretrained=pretrained)
-        elif encoder_depth == 101:
-            self.encoder = torchvision.models.resnet101(pretrained=pretrained)
-        elif encoder_depth == 152:
-            self.encoder = torchvision.models.resnet152(pretrained=pretrained)
-        else:
-            raise NotImplementedError('only 34, 101, 152 version of Resnet are implemented')
+        self.encoder = resnet34(pretrained=pretrained)
 
         self.input_adjust = nn.Sequential(self.encoder.conv1,
                                           self.encoder.bn1,
