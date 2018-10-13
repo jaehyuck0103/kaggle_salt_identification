@@ -8,7 +8,6 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from nets.unet_res_heavy import UNetResHeavy
 from nets.unet_res_light import UNetResLight
 from datasets.salt import Salt
 
@@ -26,9 +25,7 @@ class UNetAgent():
         self.device = torch.device('cuda')
 
         # Network Setting
-        if cfg.NET == 'UNetResHeavy':
-            self.net = UNetResHeavy().to(self.device)
-        elif cfg.NET == 'UNetResLight':
+        if cfg.NET == 'UNetResLight':
             self.net = UNetResLight().to(self.device)
         else:
             raise ValueError(f'Unknown Network: {cfg.NET}')

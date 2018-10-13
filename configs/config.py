@@ -1,7 +1,6 @@
 import os
 from datetime import datetime
 
-from .UNetResHeavy import Config as UNetResHeavyConfig
 from .UNetResLight import Config as UNetResLightConfig
 
 
@@ -11,9 +10,7 @@ ROOT_DIR = os.path.join(FILE_DIR, '../')
 
 def process_config(args):
 
-    if args.CFG_NAME == 'UNetResHeavy':
-        cfg = UNetResHeavyConfig()
-    elif args.CFG_NAME == 'UNetResLight':
+    if args.CFG_NAME == 'UNetResLight':
         cfg = UNetResLightConfig()
     else:
         raise ValueError(f'Unknown CFG_NAME: {args.CFG_NAME}')
