@@ -56,7 +56,7 @@ class Salt(Dataset):
             # General
             iaa.Fliplr(0.5),
             iaa.Crop(px=(5, 15), keep_size=False),
-            iaa.Sometimes(0.5, iaa.Affine(rotate=(-10, 10), mode='reflect')),
+            iaa.Sometimes(0.5, iaa.Affine(rotate=(-10, 10), mode='edge')),
 
             # Deformations
             # iaa.Sometimes(0.3, iaa.PiecewiseAffine(scale=(0.04, 0.08))),
