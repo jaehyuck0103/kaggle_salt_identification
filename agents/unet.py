@@ -86,11 +86,11 @@ class UNetAgent():
         os.makedirs(self.cfg.CHECKPOINT_DIR, exist_ok=True)
         torch.save(state, os.path.join(self.cfg.CHECKPOINT_DIR, filename))
 
-    def load_checkpoint(self, load_dir):
+    def load_checkpoint(self, cycle_i):
 
-        filename = f'UNet_{self.cfg.KFOLD_I}_{self.cfg.CYCLE_I-1}.ckpt'
+        filename = f'UNet_{self.cfg.KFOLD_I}_{cycle_i}.ckpt'
         logging.info("Loading checkpoint '{}'".format(filename))
-        checkpoint = torch.load(os.path.join(load_dir, filename))
+        checkpoint = torch.load(os.path.join(self.cfg.CHECKPOINT_DIR, filename))
 
         self.current_epoch = checkpoint['epoch'] + 1
         self.net.load_state_dict(checkpoint['state_dict'])

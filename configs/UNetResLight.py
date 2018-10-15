@@ -38,6 +38,12 @@ def TrainConfig3(A):
     return A
 
 
+def TestConfig(A):
+    A.TEST_CYCLE_I_LIST = [6]
+
+    return A
+
+
 class Config:
     COMMON = CommonConfig
     train_cycles = [TrainConfig2,
@@ -53,4 +59,5 @@ class Config:
 
     def get_test_config(self):
         cfg = self.COMMON()
+        cfg = TestConfig(cfg)
         return cfg

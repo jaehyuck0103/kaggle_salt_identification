@@ -47,7 +47,7 @@ def train(cfg):
 
             agent = UNetAgent(cfg_dyn)
             if CYCLE_I > 0:
-                agent.load_checkpoint(cfg.COMMON.CHECKPOINT_DIR)
+                agent.load_checkpoint(CYCLE_I-1)
             agent.train()
 
     # logging configs
@@ -56,17 +56,15 @@ def train(cfg):
 
 def test(cfg):
     cfg = cfg.get_test_config()
-    cfg.CYCLE_I = cfg.CYCLE_N
 
     test_dataset = SaltTest(cfg)
     test_loader = DataLoader(dataset=test_dataset, batch_size=cfg.TEST_BATCH_SIZE,
                              shuffle=False, num_workers=8)
 
     agents = []
-    for i in cfg.KFOLD_I_LIST:
-        cfg.KFOLD_I = i
+    for cfg.KFOLD_I, TEST_CYCLE_I in zip(cfg.KFOLD_I_LIST, cfg.TEST_CYCLE_I_LIST):
         agent = UNetAgent(cfg, predict_only=True)
-        agent.load_checkpoint(cfg.CHECKPOINT_DIR)
+        agent.load_checkpoint(TEST_CYCLE_I)
         agents.append(agent)
 
     tqdm_batch = tqdm(test_loader, f'Test')
