@@ -45,9 +45,8 @@ class DecoderBlockV2(nn.Module):
 
 class UNetResLight(nn.Module):
 
-    def __init__(self, dropout_2d=0.4, pretrained=True, is_deconv=False):
+    def __init__(self, dropout_2d=0.5, pretrained=True, is_deconv=False):
         super().__init__()
-        self.dropout_2d = dropout_2d
 
         self.encoder = resnet34(pretrained=pretrained)
 
@@ -71,6 +70,8 @@ class UNetResLight(nn.Module):
         self.dec2 = DecoderBlockV2(32 + 32, 64, 32, is_deconv)
         self.dec1 = DecoderBlockV2(32 + 32, 64, 32, is_deconv)
         self.dec0 = ConvBnRelu(32 + 64, 32)
+
+        self.final_dropout = nn.Dropout2d(p=dropout_2d, inplace=True)
 
         self.final = nn.Sequential(
             ConvBnRelu(224, 64),
@@ -123,6 +124,6 @@ class UNetResLight(nn.Module):
             F.interpolate(squ4, scale_factor=16, mode='bilinear'),
         ), 1)
 
-        y = F.dropout2d(y, p=self.dropout_2d)
+        y = self.final_dropout(y)
         y = self.final(y)
         return y
