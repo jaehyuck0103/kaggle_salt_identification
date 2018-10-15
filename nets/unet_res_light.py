@@ -12,7 +12,7 @@ class ConvBnRelu(nn.Module):
         self.conv = nn.Sequential(nn.Conv2d(in_channels, out_channels,
                                             kernel_size, padding=kernel_size//2),
                                   nn.BatchNorm2d(out_channels),
-                                  CBAM(out_channels, 16),
+                                  CBAM(out_channels),
                                   nn.ReLU(inplace=True)
                                   )
 
@@ -21,55 +21,40 @@ class ConvBnRelu(nn.Module):
 
 
 class DecoderBlockV2(nn.Module):
-    def __init__(self, in_channels, middle_channels, out_channels, is_deconv=True):
+    def __init__(self, in_channels, middle_channels, out_channels, is_deconv):
         super(DecoderBlockV2, self).__init__()
-        self.is_deconv = is_deconv
 
-        self.deconv = nn.Sequential(
-            ConvBnRelu(in_channels, middle_channels),
-            nn.ConvTranspose2d(middle_channels, out_channels, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
-        )
-
-        self.upsample = nn.Sequential(
-            ConvBnRelu(in_channels, out_channels),
-            nn.Upsample(scale_factor=2, mode='bilinear'),
-        )
+        if is_deconv:
+            self.upsample = nn.Sequential(
+                ConvBnRelu(in_channels, middle_channels),
+                nn.ConvTranspose2d(middle_channels, out_channels, kernel_size=4,
+                                   stride=2, padding=1),
+                nn.BatchNorm2d(out_channels),
+                nn.ReLU(inplace=True),
+            )
+        else:
+            self.upsample = nn.Sequential(
+                ConvBnRelu(in_channels, out_channels),
+                nn.Upsample(scale_factor=2, mode='bilinear'),
+            )
 
     def forward(self, x):
-        if self.is_deconv:
-            x = self.deconv(x)
-        else:
-            x = self.upsample(x)
+        x = self.upsample(x)
         return x
 
 
 class UNetResLight(nn.Module):
-    """PyTorch U-Net model using ResNet(34, 101 or 152) encoder.
-    UNet: https://arxiv.org/abs/1505.04597
-    ResNet: https://arxiv.org/abs/1512.03385
-    Proposed by Alexander Buslaev: https://www.linkedin.com/in/al-buslaev/
-    Args:
-            encoder_depth (int): Depth of a ResNet encoder (34, 101 or 152).
-            num_classes (int): Number of output classes.
-            num_filters (int, optional): Number of filters in the last layer of decoder.
-            dropout_2d (float, optional): dropout layer before output layer.
-            pretrained (bool, optional):
-            is_deconv (bool, optional):
-    """
 
-    def __init__(self, num_classes=1, num_filters=32, dropout_2d=0.4,
-                 pretrained=True, is_deconv=False):
+    def __init__(self, dropout_2d=0.4, pretrained=True, is_deconv=False):
         super().__init__()
-        self.num_classes = num_classes
         self.dropout_2d = dropout_2d
 
         self.encoder = resnet34(pretrained=pretrained)
 
-        self.input_adjust = nn.Sequential(self.encoder.conv1,
-                                          self.encoder.bn1,
-                                          self.encoder.relu)
+        self.enc0 = nn.Sequential(self.encoder.conv1,
+                                  self.encoder.bn1,
+                                  self.encoder.relu)
+        self.maxpool = self.encoder.maxpool
 
         self.enc1 = self.encoder.layer1
         self.enc2 = self.encoder.layer2
@@ -81,17 +66,15 @@ class UNetResLight(nn.Module):
         self.squ3 = ConvBnRelu(256, 32, kernel_size=1)
         self.squ4 = ConvBnRelu(512, 64, kernel_size=1)
 
-        self.dec4 = DecoderBlockV2(64, num_filters * 16,
-                                   num_filters, is_deconv)
-        self.dec3 = DecoderBlockV2(32 + num_filters, num_filters * 8,
-                                   num_filters, is_deconv)
-        self.dec2 = DecoderBlockV2(32 + num_filters, num_filters * 4,
-                                   num_filters, is_deconv)
-        self.dec1 = DecoderBlockV2(32 + num_filters, num_filters * 2,
-                                   num_filters, is_deconv)
+        self.dec4 = DecoderBlockV2(64, 64, 32, is_deconv)
+        self.dec3 = DecoderBlockV2(32 + 32, 64, 32, is_deconv)
+        self.dec2 = DecoderBlockV2(32 + 32, 64, 32, is_deconv)
+        self.dec1 = DecoderBlockV2(32 + 32, 64, 32, is_deconv)
+        self.dec0 = ConvBnRelu(32 + 64, 32)
+
         self.final = nn.Sequential(
-            ConvBnRelu(192, num_filters * 2),
-            nn.Conv2d(num_filters * 2, num_classes, kernel_size=1),
+            ConvBnRelu(224, 64),
+            nn.Conv2d(64, 1, kernel_size=1),
         )
 
         '''
@@ -112,8 +95,9 @@ class UNetResLight(nn.Module):
         '''
 
     def forward(self, x):
-        input_adjust = self.input_adjust(x)
-        enc1 = self.enc1(input_adjust)
+        enc0 = self.enc0(x)  # 64x128x128
+        enc0_pool = self.maxpool(enc0)  # 64x64x64
+        enc1 = self.enc1(enc0_pool)
         enc2 = self.enc2(enc1)
         enc3 = self.enc3(enc2)
         enc4 = self.enc4(enc3)
@@ -127,9 +111,11 @@ class UNetResLight(nn.Module):
         dec3 = self.dec3(torch.cat([dec4, squ3], 1))
         dec2 = self.dec2(torch.cat([dec3, squ2], 1))
         dec1 = self.dec1(torch.cat([dec2, squ1], 1))
+        dec0 = self.dec0(torch.cat([dec1, enc0], 1))
 
         # hypercolumn
         y = torch.cat((
+            dec0,
             dec1,
             F.interpolate(dec2, scale_factor=2, mode='bilinear'),
             F.interpolate(dec3, scale_factor=4, mode='bilinear'),
