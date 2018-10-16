@@ -60,6 +60,7 @@ class UNetResLight(nn.Module):
         self.enc3 = self.encoder.layer3
         self.enc4 = self.encoder.layer4
 
+        self.squ0 = ConvBnRelu(64, 32, kernel_size=1)
         self.squ1 = ConvBnRelu(64, 32, kernel_size=1)
         self.squ2 = ConvBnRelu(128, 32, kernel_size=1)
         self.squ3 = ConvBnRelu(256, 32, kernel_size=1)
@@ -69,7 +70,7 @@ class UNetResLight(nn.Module):
         self.dec3 = DecoderBlockV2(32 + 32, 64, 32, is_deconv)
         self.dec2 = DecoderBlockV2(32 + 32, 64, 32, is_deconv)
         self.dec1 = DecoderBlockV2(32 + 32, 64, 32, is_deconv)
-        self.dec0 = ConvBnRelu(32 + 64, 32)
+        self.dec0 = ConvBnRelu(32 + 32, 32)
 
         self.final_dropout = nn.Dropout2d(p=dropout_2d, inplace=True)
 
@@ -103,6 +104,7 @@ class UNetResLight(nn.Module):
         enc3 = self.enc3(enc2)
         enc4 = self.enc4(enc3)
 
+        squ0 = self.squ0(enc0)
         squ1 = self.squ1(enc1)
         squ2 = self.squ2(enc2)
         squ3 = self.squ3(enc3)
@@ -112,7 +114,7 @@ class UNetResLight(nn.Module):
         dec3 = self.dec3(torch.cat([dec4, squ3], 1))
         dec2 = self.dec2(torch.cat([dec3, squ2], 1))
         dec1 = self.dec1(torch.cat([dec2, squ1], 1))
-        dec0 = self.dec0(torch.cat([dec1, enc0], 1))
+        dec0 = self.dec0(torch.cat([dec1, squ0], 1))
 
         # hypercolumn
         y = torch.cat((
@@ -126,4 +128,4 @@ class UNetResLight(nn.Module):
 
         y = self.final_dropout(y)
         y = self.final(y)
-        return y
+        return [y]

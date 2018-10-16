@@ -157,7 +157,7 @@ class UNetAgent():
             masks = torch.tensor(x['mask'], dtype=torch.float, device=self.device)
 
             # model
-            pred = self.net(imgs)
+            pred, *_ = self.net(imgs)
 
             # loss
             cur_loss = self.loss(pred, masks)
