@@ -1,5 +1,5 @@
 class CommonConfig:
-    NET = 'UNetResLight'
+    NET = 'UNetResSupervision'
 
     TRAIN_BATCH_SIZE = 16
     VALID_BATCH_SIZE = 32

@@ -72,12 +72,12 @@ class Salt(Dataset):
             iaa.Sometimes(0.3, iaa.ContrastNormalization((0.5, 1.5))),
             iaa.OneOf([
                  iaa.Noop(),
-                 # iaa.OneOf([
-                 #     iaa.Add((-10, 10)),
-                 #     iaa.AddElementwise((-10, 10)),
-                 #     iaa.Multiply((0.95, 1.05)),
-                 #     iaa.MultiplyElementwise((0.95, 1.05)),
-                 # ]),
+                 iaa.OneOf([
+                     iaa.Add((-10, 10)),
+                     # iaa.AddElementwise((-10, 10)),
+                     iaa.Multiply((0.95, 1.05)),
+                     # iaa.MultiplyElementwise((0.95, 1.05)),
+                 ]),
                  # iaa.OneOf([
                  #     iaa.GaussianBlur(sigma=(0.0, 1.0)),
                  #     iaa.AverageBlur(k=(2, 5)),
@@ -92,6 +92,10 @@ class Salt(Dataset):
 
         img = self.imgs[idx]
         mask = self.masks[idx]
+        if mask.sum() > 0:
+            salty = np.array([1])
+        else:
+            salty = np.array([0])
 
         '''
         imsave(f'output/image/{idx}_img.png', img)
@@ -143,7 +147,7 @@ class Salt(Dataset):
         mask[mask >= 0.5] = 1
         mask[mask < 0.5] = 0
         mask = np.expand_dims(mask, axis=0)
-        sample = {'img': img, 'mask': mask}
+        sample = {'img': img, 'mask': mask, 'salty': salty}
 
         return sample
 

@@ -6,9 +6,11 @@ from tqdm import tqdm
 
 import torch
 import torch.nn as nn
+from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 from nets.unet_res_light import UNetResLight
+from nets.unet_res_supervision import UNetResSupervision
 from datasets.salt import Salt
 
 from utils.metrics import AverageMeter, iou_pytorch
@@ -27,6 +29,8 @@ class UNetAgent():
         # Network Setting
         if cfg.NET == 'UNetResLight':
             self.net = UNetResLight().to(self.device)
+        elif cfg.NET == 'UNetResSupervision':
+            self.net = UNetResSupervision().to(self.device)
         else:
             raise ValueError(f'Unknown Network: {cfg.NET}')
 
@@ -102,7 +106,13 @@ class UNetAgent():
         best_valid_iou = 0
         for epoch in range(self.current_epoch, self.current_epoch + self.cfg.NUM_EPOCH):
             self.current_epoch = epoch
-            self.train_one_epoch()
+
+            if self.cfg.NET == 'UNetResLight':
+                self.train_one_epoch()
+            elif self.cfg.NET == 'UNetResSupervision':
+                self.train_one_epoch_supervision()
+            else:
+                raise ValueError(f'Unknown Network: {self.cfg.NET}')
 
             # Validation
             valid_iou = self.validate()
@@ -179,6 +189,61 @@ class UNetAgent():
                      f'loss: {epoch_loss.val:.5} - Acc: {epoch_acc.val:.5}'
                      f'- IOU: {epoch_iou.val:.5} - Filtered IOU: {epoch_filtered_iou.val:.5}')
 
+    def train_one_epoch_supervision(self):
+
+        # Set the model to be in training mode
+        self.net.train()
+
+        # Initialize average meters
+        epoch_loss = AverageMeter()
+        epoch_acc = AverageMeter()
+        epoch_iou = AverageMeter()
+        epoch_filtered_iou = AverageMeter()
+
+        tqdm_batch = tqdm(self.train_loader, f'Epoch-{self.current_epoch}-')
+        for x in tqdm_batch:
+            # prepare data
+            imgs = torch.tensor(x['img'], dtype=torch.float, device=self.device)
+            masks = torch.tensor(x['mask'], dtype=torch.float, device=self.device)
+            salty = torch.tensor(x['salty'], dtype=torch.float, device=self.device)
+
+            # model
+            pred, pred_seg_pure, pred_salty = self.net(imgs)
+
+            # loss
+            cur_pred_loss = self.loss(pred, masks)
+            cur_seg_pure_loss = self.loss(pred_seg_pure[salty.squeeze() > 0.5],
+                                          masks[salty.squeeze() > 0.5])
+            cur_salty_loss = F.binary_cross_entropy_with_logits(pred_salty, salty)
+            cur_loss = 0.005 * cur_salty_loss + 0.5 * cur_seg_pure_loss + cur_pred_loss
+            if np.isnan(float(cur_loss.item())):
+                raise ValueError('Loss is nan during training...')
+
+            # optimizer
+            self.optimizer.zero_grad()
+            cur_loss.backward()
+            self.optimizer.step()
+
+            # metrics
+            pred_t = torch.sigmoid(pred) > 0.5
+            masks_t = masks > 0.5
+
+            cur_acc = torch.sum(pred_t == masks_t).item() / masks.numel()
+            cur_iou = iou_pytorch(pred_t, masks_t)
+            cur_filtered_iou = iou_pytorch(remove_small_mask_batch(pred_t), masks_t)
+
+            batch_size = imgs.shape[0]
+            epoch_loss.update(cur_loss.item(), batch_size)
+            epoch_acc.update(cur_acc, batch_size)
+            epoch_iou.update(cur_iou.item(), batch_size)
+            epoch_filtered_iou.update(cur_filtered_iou.item(), batch_size)
+
+        tqdm_batch.close()
+
+        logging.info(f'Training at epoch- {self.current_epoch} |'
+                     f'loss: {epoch_loss.val:.5} - Acc: {epoch_acc.val:.5}'
+                     f'- IOU: {epoch_iou.val:.5} - Filtered IOU: {epoch_filtered_iou.val:.5}')
+
     def validate(self):
 
         # set the model in eval mode
@@ -197,7 +262,7 @@ class UNetAgent():
                 masks = torch.tensor(x['mask'], dtype=torch.float, device=self.device)
 
                 # model
-                pred = self.net(imgs)
+                pred, *_ = self.net(imgs)
 
                 # loss
                 cur_loss = self.loss(pred, masks)
@@ -232,7 +297,7 @@ class UNetAgent():
             imgs = torch.tensor(imgs, dtype=torch.float, device=self.device)
 
             # model
-            pred = self.net(imgs)
+            pred, *_ = self.net(imgs)
             pred = torch.sigmoid(pred)
 
         return pred.cpu().numpy()

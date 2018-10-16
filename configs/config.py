@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 
 from .UNetResLight import Config as UNetResLightConfig
+from .UNetResSupervision import Config as UNetResSupervisionConfig
 
 
 FILE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -12,6 +13,8 @@ def process_config(args):
 
     if args.CFG_NAME == 'UNetResLight':
         cfg = UNetResLightConfig()
+    elif args.CFG_NAME == 'UNetResSupervision':
+        cfg = UNetResSupervisionConfig()
     else:
         raise ValueError(f'Unknown CFG_NAME: {args.CFG_NAME}')
 
