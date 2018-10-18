@@ -40,7 +40,7 @@ class UNetAgent():
         # Dataset Setting
         train_dataset = Salt(cfg, mode='train')
         self.train_loader = DataLoader(dataset=train_dataset, batch_size=cfg.TRAIN_BATCH_SIZE,
-                                       shuffle=True, num_workers=8)
+                                       shuffle=True, num_workers=8, drop_last=True)
         valid_dataset = Salt(cfg, mode='valid')
         self.valid_loader = DataLoader(dataset=valid_dataset, batch_size=cfg.VALID_BATCH_SIZE,
                                        shuffle=False, num_workers=8)

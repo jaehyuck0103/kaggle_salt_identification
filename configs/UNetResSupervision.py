@@ -5,7 +5,7 @@ class CommonConfig:
     VALID_BATCH_SIZE = 32
     TEST_BATCH_SIZE = 32
 
-    KFOLD_N = 5
+    KFOLD_N = 9
     KFOLD_I_LIST = [0]
 
 

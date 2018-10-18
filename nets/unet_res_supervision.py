@@ -83,7 +83,9 @@ class UNetResSupervision(nn.Module):
         self.avg_pool = nn.Sequential(
             nn.AdaptiveAvgPool2d(output_size=1),
             nn.Dropout(p=dropout),
-            ConvBnRelu(512, 64, kernel_size=1),
+            # ConvBnRelu(512, 64, kernel_size=1),
+            nn.Conv2d(512, 64, kernel_size=1),
+            nn.ReLU(inplace=True),
         )
 
         self.final_cls = nn.Linear(64, 1)
@@ -143,7 +145,9 @@ class UNetResSupervision(nn.Module):
 
         # cls
         avg_pool = self.avg_pool(enc4)
-        final_cls = self.final_cls(avg_pool.squeeze())
+        avg_pool_sq = avg_pool.squeeze(dim=3)
+        avg_pool_sq = avg_pool_sq.squeeze(dim=2)  # batch가 1인 경우 때문에 squeeze 두번에 걸쳐서.
+        final_cls = self.final_cls(avg_pool_sq)
 
         # fuse
         fuse = torch.cat((
