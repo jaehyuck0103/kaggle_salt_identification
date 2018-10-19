@@ -6,7 +6,7 @@ class CommonConfig:
     TEST_BATCH_SIZE = 32
 
     KFOLD_N = 9
-    KFOLD_I_LIST = [0]
+    KFOLD_I_LIST = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 
 
 def TrainConfig2(A):

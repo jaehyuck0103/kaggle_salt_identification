@@ -84,11 +84,15 @@ class UNetAgent():
         state = {
             'epoch': self.current_epoch,
             'state_dict': self.net.state_dict(),
+            'best_thres': self.best_thres,
         }
 
         filename = f'UNet_{self.cfg.KFOLD_I}_{self.cfg.CYCLE_I}.ckpt'
+        logging.info("Saving checkpoint '{}'".format(filename))
         os.makedirs(self.cfg.CHECKPOINT_DIR, exist_ok=True)
         torch.save(state, os.path.join(self.cfg.CHECKPOINT_DIR, filename))
+
+        logging.info(f'Checkpoint saved successfully at (epoch {self.current_epoch})')
 
     def load_checkpoint(self, cycle_i):
 
@@ -98,6 +102,7 @@ class UNetAgent():
 
         self.current_epoch = checkpoint['epoch'] + 1
         self.net.load_state_dict(checkpoint['state_dict'])
+        self.best_thres = checkpoint['best_thres']
 
         logging.info(f'Checkpoint loaded successfully at (epoch {checkpoint["epoch"]})')
 
@@ -135,6 +140,9 @@ class UNetAgent():
 
             if num_bad_epochs == self.cfg.EARLY_STOP:
                 break
+
+        # Find best threshold
+        self.best_thres = self.find_best_thres()
 
         self.save_checkpoint()
         return best_valid_iou
@@ -288,6 +296,45 @@ class UNetAgent():
                      f' - Filtered IOU: {epoch_filtered_iou.val:.5}')
 
         return epoch_filtered_iou.val
+
+    def find_best_thres(self):
+        # set the model in eval mode
+        self.net.eval()
+
+        pred_TTA_list = []
+        masks_t_list = []
+
+        tqdm_batch = tqdm(self.valid_loader, f'Epoch-{self.current_epoch}-')
+        with torch.no_grad():
+            for x in tqdm_batch:
+                # prepare data
+                imgs = torch.tensor(x['img'], dtype=torch.float, device=self.device)
+                masks = torch.tensor(x['mask'], dtype=torch.float, device=self.device)
+
+                # model
+                pred, *_ = self.net(imgs)
+                pred_flip, *_ = self.net(imgs.flip(dims=[3]))
+                pred_TTA = (torch.sigmoid(pred) + torch.sigmoid(pred_flip.flip(dims=[3]))) / 2
+
+                # metrics
+                masks_t = masks > 0.5
+
+                pred_TTA_list.append(pred_TTA.cpu())
+                masks_t_list.append(masks_t.cpu())
+        tqdm_batch.close()
+
+        pred_TTA = torch.cat(pred_TTA_list, dim=0)
+        masks_t = torch.cat(masks_t_list, dim=0)
+
+        thresholds = np.linspace(0.3, 0.7, 50)
+        filtered_ious = np.array([iou_pytorch(remove_small_mask_batch(pred_TTA > t), masks_t)
+                                  for t in thresholds])
+        best_thres_idx = np.argmax(filtered_ious)
+        best_thres = thresholds[best_thres_idx]
+
+        logging.info(f'Best Threshold- {best_thres}')
+
+        return best_thres
 
     def predict(self, imgs):
 
