@@ -39,7 +39,7 @@ def TrainConfig3(A):
 
 
 def TestConfig(A):
-    A.TEST_CYCLE_I_LIST = [6]
+    A.TEST_CYCLE_I_LIST = [6, 6, 6, 6, 6, 6, 6, 6, 6]
 
     return A
 

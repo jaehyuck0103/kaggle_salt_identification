@@ -72,6 +72,10 @@ def test(cfg):
     pred_dict = {}
     for x in tqdm_batch:
         pred = [a.predict(x['img']) for a in agents]
+        # pred = [a.predict(x['img']) > a.best_thres for a in agents]
+        # pred = [a.predict(x['img']) > 0.5 for a in agents]
+        # pred = [a.predict(x['img']) > 0.45 for a in agents]
+        # pred = [a.predict(x['img']) > 0.55 for a in agents]
         pred = np.mean(pred, axis=0)
         pred = np.squeeze(pred)
 

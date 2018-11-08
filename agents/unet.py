@@ -345,6 +345,8 @@ class UNetAgent():
 
             # model
             pred, *_ = self.net(imgs)
-            pred = torch.sigmoid(pred)
+            pred_flip, *_ = self.net(imgs.flip(dims=[3]))
 
-        return pred.cpu().numpy()
+            pred_TTA = (torch.sigmoid(pred) + torch.sigmoid(pred_flip.flip(dims=[3]))) / 2
+
+        return pred_TTA.cpu().numpy()
